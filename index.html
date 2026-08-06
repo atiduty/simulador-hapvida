@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+* { box-sizing: border-box; }
+body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 16px; background: #f4f6f8; color: #222; font-size: 14px; }
+h1 { font-size: 18px; margin: 0 0 4px; color: #0b3d91; }
+.sub { color: #666; margin: 0 0 16px; font-size: 12px; }
+.card { background: #fff; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+.field { flex: 1; min-width: 160px; }
+label { display: block; font-weight: bold; font-size: 12px; margin-bottom: 4px; color: #333; }
+select, input[type=text], input[type=number] { width: 100%; padding: 7px 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
+input[type=number] { text-align: center; }
+.tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.tab-btn { flex: 1; padding: 10px; text-align: center; border-radius: 6px; border: 1px solid #0b3d91; background: #fff; color: #0b3d91; font-weight: bold; cursor: pointer; }
+.tab-btn.active { background: #0b3d91; color: #fff; }
+.toggle { display: flex; align-items: center; gap: 8px; }
+.toggle input { width: 18px; height: 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid #eee; }
+th { color: #555; font-size: 11px; text-transform: uppercase; }
+td.num, th.num { text-align: right; }
+.faixa-qtd { width: 64px; padding: 5px; text-align: center; }
+.btn-primary { background: #0b3d91; color: #fff; border: none; border-radius: 6px; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; cursor: pointer; }
+.btn-primary:disabled { opacity: .6; }
+#resultado { display: none; }
+.total-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+.total-line.grand { font-size: 17px; font-weight: bold; color: #0b3d91; border-top: 2px solid #0b3d91; margin-top: 6px; padding-top: 8px; }
+.desconto { color: #b00020; }
+.note { font-size: 11px; color: #888; margin-top: 6px; }
+.err { background: #fdecea; color: #b00020; padding: 8px 10px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; display: none; }
+.badge { display: inline-block; background: #e8f0fe; color: #0b3d91; border-radius: 4px; padding: 2px 6px; font-size: 11px; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<h1>🏥 Simulador Hapvida &middot; Duty Sa&uacute;de</h1>
+<p class="sub">Pre&ccedil;os lidos em tempo real da tabela oficial. Preencha os filtros e a quantidade de vidas por faixa et&aacute;ria.</p>
+
+<div class="tabs">
+<div class="tab-btn active" id="tabIndividual" onclick="setTipo('individual')">Individual</div>
+<div class="tab-btn" id="tabPJ" onclick="setTipo('pj')">Empresarial (PJ)</div>
+</div>
+
+<div class="card">
+<div class="row">
+<div class="field">
+<label>Nome do cliente / raz&atilde;o social</label>
+<input type="text" id="nomeCliente" placeholder="Opcional">
+</div>
+<div class="field">
+<label>Consultor</label>
+<input type="text" id="nomeConsultor" placeholder="Opcional">
+</div>
+</div>
+
+<div class="row" id="rowPorte" style="display:none">
+<div class="field">
+<label>Porte da empresa</label>
+<select id="porte">
+<option value="Porte I (2 a 15 vidas)">Porte I (2 a 15 vidas)</option>
+<option value="Porte II (16 a 29 vidas)">Porte II (16 a 29 vidas)</option>
+</select>
+</div>
+</div>
+
+<div class="row">
+<div class="field">
+<label>Coparticipa&ccedil;&atilde;o</label>
+<select id="coparticipacao">
+<option value="Parcial">Parcial</option>
+<option value="Total">Total</option>
+</select>
+</div>
+<div class="field">
+<label>Acomoda&ccedil;&atilde;o</label>
+<select id="acomodacao">
+<option value="Enfermaria">Enfermaria</option>
+<option value="Apartamento">Apartamento</option>
+<option value="Ambulatorial">S/ACOM (Ambulatorial)</option>
+</select>
+</div>
+</div>
+
+<div class="row">
+<div class="field toggle">
+<input type="checkbox" id="promo">
+<label style="margin:0">🏷️ Promo&ccedil;&atilde;o 15% (3 primeiras mensalidades)</label>
+</div>
+<div class="field toggle" id="rowOdonto" style="display:none">
+<input type="checkbox" id="odonto">
+<label style="margin:0">🦷 Odonto opcional (+R$ 23,25/vida)</label>
+</div>
+</div>
+</div>
+
+<div class="card">
+<label style="margin-bottom:8px">👥 Vidas por faixa et&aacute;ria</label>
+<table>
+<thead><tr><th>Faixa et&aacute;ria</th><th class="num">Qtde de vidas</th></tr></thead>
+<tbody id="faixasBody"></tbody>
+</table>
+</div>
+
+<div class="err" id="erroBox"></div>
+<button class="btn-primary" id="btnCalcular" onclick="calcular()">Calcular simula&ccedil;&atilde;o</button>
+
+<div class="card" id="resultado">
+<table>
+<thead><tr><th>Faixa</th><th class="num">Vidas</th><th class="num">R$/vida</th><th class="num">Subtotal</th></tr></thead>
+<tbody id="resultLinhas"></tbody>
+</table>
+<div id="resumoTotais" style="margin-top:10px"></div>
+</div>
+
+<script>
+var FAIXAS = [];
+var TIPO = 'individual';
+
+function setTipo(t) {
+TIPO = t;
+document.getElementById('tabIndividual').className = 'tab-btn' + (t === 'individual' ? ' active' : '');
+document.getElementById('tabPJ').className = 'tab-btn' + (t === 'pj' ? ' active' : '');
+document.getElementById('rowPorte').style.display = (t === 'pj') ? 'flex' : 'none';
+document.getElementById('rowOdonto').style.display = (t === 'pj') ? 'flex' : 'none';
+document.getElementById('resultado').style.display = 'none';
+}
+
+function montarFaixas(lista) {
+FAIXAS = lista;
+var body = document.getElementById('faixasBody');
+body.innerHTML = '';
+lista.forEach(function(nome, i) {
+var tr = document.createElement('tr');
+tr.innerHTML = '<td>' + nome + '</td><td class="num"><input type="number" min="0" step="1" class="faixa-qtd" id="qtd_' + i + '" value=""></td>';
+body.appendChild(tr);
+});
+}
+
+function coletarVidas() {
+var vidas = [];
+for (var i = 0; i < FAIXAS.length; i++) {
+var el = document.getElementById('qtd_' + i);
+var v = el && el.value ? parseInt(el.value, 10) : 0;
+vidas.push(isNaN(v) ? 0 : v);
+}
+return vidas;
+}
+
+function fmt(n) {
+return 'R$ ' + Number(n).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function mostrarErro(msg) {
+var box = document.getElementById('erroBox');
+box.textContent = msg;
+box.style.display = msg ? 'block' : 'none';
+}
+
+function calcular() {
+mostrarErro('');
+var vidas = coletarVidas();
+var totalVidas = vidas.reduce(function(a, b) { return a + b; }, 0);
+if (totalVidas <= 0) {
+mostrarErro('Informe ao menos 1 vida em alguma faixa etária.');
+return;
+}
+var btn = document.getElementById('btnCalcular');
+btn.disabled = true;
+btn.textContent = 'Calculando...';
+
+var input = {
+coparticipacao: document.getElementById('coparticipacao').value,
+acomodacao: document.getElementById('acomodacao').value,
+promo: document.getElementById('promo').checked,
+vidas: vidas
+};
+
+var onOk = function(res) {
+btn.disabled = false;
+btn.textContent = 'Calcular simulação';
+renderResultado(res);
+};
+var onErr = function(err) {
+btn.disabled = false;
+btn.textContent = 'Calcular simulação';
+mostrarErro('Erro ao calcular: ' + (err && err.message ? err.message : err));
+};
+
+if (TIPO === 'individual') {
+fetch('https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec?action=simular&tipo=individual&input=' + encodeURIComponent(JSON.stringify(input))).then(function(r){return r.json();}).then(function(res){ if (res && res.error) { onErr(res); } else { onOk(res); } }).catch(onErr);
+} else {
+input.porte = document.getElementById('porte').value;
+input.odonto = document.getElementById('odonto').checked;
+fetch('https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec?action=simular&tipo=pj&input=' + encodeURIComponent(JSON.stringify(input))).then(function(r){return r.json();}).then(function(res){ if (res && res.error) { onErr(res); } else { onOk(res); } }).catch(onErr);
+}
+}
+
+function renderResultado(res) {
+var body = document.getElementById('resultLinhas');
+body.innerHTML = '';
+res.linhas.forEach(function(l) {
+if (!l.qtd) return;
+var tr = document.createElement('tr');
+tr.innerHTML = '<td>' + l.faixa + '</td><td class="num">' + l.qtd + '</td><td class="num">' + fmt(l.precoVida) + '</td><td class="num">' + fmt(l.subtotal) + '</td>';
+body.appendChild(tr);
+});
+
+var html = '';
+if (res.tipo === 'individual') {
+html += linha('Subtotal (' + res.totalVidas + ' vida' + (res.totalVidas > 1 ? 's' : '') + ')', res.subtotal);
+if (res.desconto5) html += linha('Desconto 5% (2+ vidas)', res.desconto5, true);
+if (res.desconto15) html += linha('Desconto 15% (promoção)', res.desconto15, true);
+html += linha('Valor líquido / mensalidade', res.liquido);
+html += linha('Taxa de adesão (única)', res.adesao);
+html += linha('Total 1º mês', res.total1Mes, false, true);
+html += linha('Mensalidade recorrente (2º/3º mês)', res.recorrente);
+if (res.apartir4Mes !== null) html += linha('A partir do 4º mês', res.apartir4Mes);
+} else {
+html += linha('Bruto sem odonto (' + res.totalVidas + ' vida' + (res.totalVidas > 1 ? 's' : '') + ')', res.brutoSemOdonto);
+if (res.odonto) html += linha('Odonto opcional', res.odontoValor);
+if (res.desconto15) html += linha('Desconto 15% (promoção)', res.desconto15, true);
+html += linha('Valor líquido (plano' + (res.odonto ? ' + odonto' : '') + ')', res.liquido);
+html += linha('Taxa de adesão (R$20/vida, única)', res.adesao);
+html += linha('Total 1º mês', res.total1Mes, false, true);
+if (res.apartir4Mes !== null) html += linha('A partir do 4º mês', res.apartir4Mes);
+}
+document.getElementById('resumoTotais').innerHTML = html;
+document.getElementById('resultado').style.display = 'block';
+document.getElementById('resultado').scrollIntoView({behavior: 'smooth'});
+}
+
+function linha(label, valor, isDesconto, grand) {
+var cls = 'total-line' + (grand ? ' grand' : '') + (isDesconto ? ' desconto' : '');
+return '<div class="' + cls + '"><span>' + label + '</span><span>' + (isDesconto ? '- ' : '') + fmt(Math.abs(valor)) + '</span></div>';
+}
+
+fetch('https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec?action=getFaixas').then(function(r){return r.json();}).then(function(f) {
+montarFaixas(f.individual);
+}).catch(function(err) {
+mostrarErro('Erro ao carregar tabela de precos: ' + (err && err.message ? err.message : err));
+});
+</script>
+</body>
+</html>
