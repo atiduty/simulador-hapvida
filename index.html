@@ -209,6 +209,10 @@ fetch(EXEC_URL + '?action=simular&tipo=' + TIPO + '&input=' + encodeURIComponent
 
 function gerarPDF() {
 if (!ULTIMO_INPUT) return;
+var novaJanela = window.open('', '_blank');
+if (novaJanela && novaJanela.document) {
+novaJanela.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gerando proposta...</title></head><body style="font-family:Arial;padding:40px;text-align:center;color:#0b3d91"><h2>Gerando PDF da proposta...</h2><p>Aguarde, isso leva alguns segundos.</p></body></html>');
+}
 var btn = document.getElementById('btnPDF');
 var textoOriginal = btn.textContent;
 btn.disabled = true;
@@ -218,13 +222,22 @@ fetch(EXEC_URL + '?action=gerarPropostaPDF&tipo=' + ULTIMO_TIPO + '&input=' + en
 .then(function(res) {
 btn.disabled = false;
 btn.textContent = textoOriginal;
-if (res && res.error) { mostrarErro('Erro ao gerar PDF: ' + res.error); return; }
+if (res && res.error) {
+mostrarErro('Erro ao gerar PDF: ' + res.error);
+if (novaJanela) novaJanela.close();
+return;
+}
+if (novaJanela) {
+novaJanela.location.href = res.url;
+} else {
 window.open(res.url, '_blank');
+}
 })
 .catch(function(err) {
 btn.disabled = false;
 btn.textContent = textoOriginal;
 mostrarErro('Erro ao gerar PDF: ' + (err && err.message ? err.message : err));
+if (novaJanela) novaJanela.close();
 });
 }
 
