@@ -209,9 +209,21 @@ fetch(EXEC_URL + '?action=simular&tipo=' + TIPO + '&input=' + encodeURIComponent
 
 function gerarPDF() {
 if (!ULTIMO_INPUT) return;
-var novaJanela = window.open('', '_blank');
+// Dentro de iframes com sandbox restrito (ex.: dashlet do CRM sem allow-popups),
+// window.open() é bloqueado e retorna null/undefined ou lança erro. Nesse caso,
+// navegamos a própria janela/iframe para o PDF em vez de abrir uma nova aba.
+var novaJanela = null;
+var podeAbrirNovaAba = true;
+try {
+novaJanela = window.open('', '_blank');
+if (!novaJanela) podeAbrirNovaAba = false;
+} catch (eOpen) {
+podeAbrirNovaAba = false;
+}
 if (novaJanela && novaJanela.document) {
+try {
 novaJanela.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gerando proposta...</title></head><body style="font-family:Arial;padding:40px;text-align:center;color:#0b3d91"><h2>Gerando PDF da proposta...</h2><p>Aguarde, isso leva alguns segundos.</p></body></html>');
+} catch (eWrite) {}
 }
 var btn = document.getElementById('btnPDF');
 var textoOriginal = btn.textContent;
@@ -224,20 +236,24 @@ btn.disabled = false;
 btn.textContent = textoOriginal;
 if (res && res.error) {
 mostrarErro('Erro ao gerar PDF: ' + res.error);
-if (novaJanela) novaJanela.close();
+if (novaJanela) { try { novaJanela.close(); } catch(e3) {} }
 return;
 }
-if (novaJanela) {
+if (podeAbrirNovaAba && novaJanela) {
+try {
 novaJanela.location.href = res.url;
-} else {
-window.open(res.url, '_blank');
+return;
+} catch (eNav) { /* cai no fallback abaixo */ }
 }
+// Fallback: sem permissão para abrir nova aba/janela (sandbox do iframe) —
+// navega a própria página atual para o PDF.
+window.location.href = res.url;
 })
 .catch(function(err) {
 btn.disabled = false;
 btn.textContent = textoOriginal;
 mostrarErro('Erro ao gerar PDF: ' + (err && err.message ? err.message : err));
-if (novaJanela) novaJanela.close();
+if (novaJanela) { try { novaJanela.close(); } catch(e4) {} }
 });
 }
 
