@@ -114,11 +114,15 @@ td.num, th.num { text-align: right; }
 <tbody id="resultLinhas"></tbody>
 </table>
 <div id="resumoTotais" style="margin-top:10px"></div>
+<button class="btn-primary" id="btnPDF" style="margin-top:10px;background:#F08000" onclick="gerarPDF()">📄 Gerar PDF da Proposta</button>
 </div>
 
 <script>
 var FAIXAS = [];
 var TIPO = 'individual';
+var ULTIMO_INPUT = null;
+var ULTIMO_TIPO = null;
+var EXEC_URL = 'https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec';
 
 function setTipo(t) {
 TIPO = t;
@@ -176,7 +180,9 @@ var input = {
 coparticipacao: document.getElementById('coparticipacao').value,
 acomodacao: document.getElementById('acomodacao').value,
 promo: document.getElementById('promo').checked,
-vidas: vidas
+vidas: vidas,
+nomeCliente: document.getElementById('nomeCliente').value,
+nomeConsultor: document.getElementById('nomeConsultor').value
 };
 
 var onOk = function(res) {
@@ -190,13 +196,36 @@ btn.textContent = 'Calcular simulação';
 mostrarErro('Erro ao calcular: ' + (err && err.message ? err.message : err));
 };
 
-if (TIPO === 'individual') {
-fetch('https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec?action=simular&tipo=individual&input=' + encodeURIComponent(JSON.stringify(input))).then(function(r){return r.json();}).then(function(res){ if (res && res.error) { onErr(res); } else { onOk(res); } }).catch(onErr);
-} else {
+if (TIPO === 'pj') {
 input.porte = document.getElementById('porte').value;
 input.odonto = document.getElementById('odonto').checked;
-fetch('https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec?action=simular&tipo=pj&input=' + encodeURIComponent(JSON.stringify(input))).then(function(r){return r.json();}).then(function(res){ if (res && res.error) { onErr(res); } else { onOk(res); } }).catch(onErr);
 }
+
+ULTIMO_INPUT = input;
+ULTIMO_TIPO = TIPO;
+
+fetch(EXEC_URL + '?action=simular&tipo=' + TIPO + '&input=' + encodeURIComponent(JSON.stringify(input))).then(function(r){return r.json();}).then(function(res){ if (res && res.error) { onErr(res); } else { onOk(res); } }).catch(onErr);
+}
+
+function gerarPDF() {
+if (!ULTIMO_INPUT) return;
+var btn = document.getElementById('btnPDF');
+var textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = 'Gerando PDF...';
+fetch(EXEC_URL + '?action=gerarPropostaPDF&tipo=' + ULTIMO_TIPO + '&input=' + encodeURIComponent(JSON.stringify(ULTIMO_INPUT)))
+.then(function(r){ return r.json(); })
+.then(function(res) {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+if (res && res.error) { mostrarErro('Erro ao gerar PDF: ' + res.error); return; }
+window.open(res.url, '_blank');
+})
+.catch(function(err) {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+mostrarErro('Erro ao gerar PDF: ' + (err && err.message ? err.message : err));
+});
 }
 
 function renderResultado(res) {
@@ -238,7 +267,7 @@ var cls = 'total-line' + (grand ? ' grand' : '') + (isDesconto ? ' desconto' : '
 return '<div class="' + cls + '"><span>' + label + '</span><span>' + (isDesconto ? '- ' : '') + fmt(Math.abs(valor)) + '</span></div>';
 }
 
-fetch('https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec?action=getFaixas').then(function(r){return r.json();}).then(function(f) {
+fetch(EXEC_URL + '?action=getFaixas').then(function(r){return r.json();}).then(function(f) {
 montarFaixas(f.individual);
 }).catch(function(err) {
 mostrarErro('Erro ao carregar tabela de precos: ' + (err && err.message ? err.message : err));
