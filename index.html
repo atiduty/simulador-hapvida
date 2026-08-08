@@ -207,6 +207,15 @@ ULTIMO_TIPO = TIPO;
 fetch(EXEC_URL + '?action=simular&tipo=' + TIPO + '&input=' + encodeURIComponent(JSON.stringify(input))).then(function(r){return r.json();}).then(function(res){ if (res && res.error) { onErr(res); } else { onOk(res); } }).catch(onErr);
 }
 
+function base64ParaBlobUrl(base64, mime) {
+var byteChars = atob(base64);
+var byteNumbers = new Array(byteChars.length);
+for (var i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+var byteArray = new Uint8Array(byteNumbers);
+var blob = new Blob([byteArray], {type: mime});
+return URL.createObjectURL(blob);
+}
+
 function gerarPDF() {
 if (!ULTIMO_INPUT) return;
 // Dentro de iframes com sandbox restrito (ex.: dashlet do CRM sem allow-popups),
@@ -239,15 +248,23 @@ mostrarErro('Erro ao gerar PDF: ' + res.error);
 if (novaJanela) { try { novaJanela.close(); } catch(e3) {} }
 return;
 }
+var blobUrl;
+try {
+blobUrl = base64ParaBlobUrl(res.pdfBase64, 'application/pdf');
+} catch (eBlob) {
+mostrarErro('Erro ao montar o PDF: ' + (eBlob && eBlob.message ? eBlob.message : eBlob));
+if (novaJanela) { try { novaJanela.close(); } catch(e5) {} }
+return;
+}
 if (podeAbrirNovaAba && novaJanela) {
 try {
-novaJanela.location.href = res.url;
+novaJanela.location.href = blobUrl;
 return;
 } catch (eNav) { /* cai no fallback abaixo */ }
 }
 // Fallback: sem permissão para abrir nova aba/janela (sandbox do iframe) —
 // navega a própria página atual para o PDF.
-window.location.href = res.url;
+window.location.href = blobUrl;
 })
 .catch(function(err) {
 btn.disabled = false;
