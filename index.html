@@ -33,12 +33,20 @@ td.num, th.num { text-align: right; }
 .note { font-size: 11px; color: #888; margin-top: 6px; }
 .err { background: #fdecea; color: #b00020; padding: 8px 10px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; display: none; }
 .badge { display: inline-block; background: #e8f0fe; color: #0b3d91; border-radius: 4px; padding: 2px 6px; font-size: 11px; margin-left: 6px; }
+.aviso-nova-aba { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #7a5b00; margin-bottom: 12px; display: none; }
+.aviso-nova-aba a { color: #0b3d91; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <h1>🏥 Simulador Hapvida &middot; Duty Sa&uacute;de</h1>
 <p class="sub">Pre&ccedil;os lidos em tempo real da tabela oficial. Preencha os filtros e a quantidade de vidas por faixa et&aacute;ria.</p>
+<div class="aviso-nova-aba" id="avisoNovaAba">
+⚠️ Voc&ecirc; est&aacute; usando o simulador dentro do CRM. O bot&atilde;o "Gerar PDF" mostra a proposta na tela, mas este painel n&atilde;o permite baixar ou imprimir o PDF diretamente por aqui.
+Para baixar/imprimir, abra o simulador numa aba separada:
+<a href="https://simulador-hapvida.pages.dev/" target="_blank" rel="noopener">simulador-hapvida.pages.dev</a>
+(se o clique n&atilde;o abrir nada, clique com o bot&atilde;o direito no link e escolha "Abrir link em nova guia").
+</div>
 
 <div class="tabs">
 <div class="tab-btn active" id="tabIndividual" onclick="setTipo('individual')">Individual</div>
@@ -311,6 +319,15 @@ document.getElementById('resultado').scrollIntoView({behavior: 'smooth'});
 function linha(label, valor, isDesconto, grand) {
 var cls = 'total-line' + (grand ? ' grand' : '') + (isDesconto ? ' desconto' : '');
 return '<div class="' + cls + '"><span>' + label + '</span><span>' + (isDesconto ? '- ' : '') + fmt(Math.abs(valor)) + '</span></div>';
+}
+
+try {
+if (window.self !== window.top) {
+document.getElementById('avisoNovaAba').style.display = 'block';
+}
+} catch (eFrame) {
+// Acesso a window.top bloqueado (cross-origin) também indica que estamos embutidos.
+document.getElementById('avisoNovaAba').style.display = 'block';
 }
 
 fetch(EXEC_URL + '?action=getFaixas').then(function(r){return r.json();}).then(function(f) {
