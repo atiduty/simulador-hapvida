@@ -1,349 +1,813 @@
-<!DOCTYPE html>
-<html>
-<head>
-<base target="_top">
-<meta charset="utf-8">
-<style>
-* { box-sizing: border-box; }
-body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 16px; background: #f4f6f8; color: #222; font-size: 14px; }
-h1 { font-size: 18px; margin: 0 0 4px; color: #0b3d91; }
-.sub { color: #666; margin: 0 0 16px; font-size: 12px; }
-.card { background: #fff; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-.row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
-.field { flex: 1; min-width: 160px; }
-label { display: block; font-weight: bold; font-size: 12px; margin-bottom: 4px; color: #333; }
-select, input[type=text], input[type=number] { width: 100%; padding: 7px 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
-input[type=number] { text-align: center; }
-.tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-.tab-btn { flex: 1; padding: 10px; text-align: center; border-radius: 6px; border: 1px solid #0b3d91; background: #fff; color: #0b3d91; font-weight: bold; cursor: pointer; }
-.tab-btn.active { background: #0b3d91; color: #fff; }
-.toggle { display: flex; align-items: center; gap: 8px; }
-.toggle input { width: 18px; height: 18px; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid #eee; }
-th { color: #555; font-size: 11px; text-transform: uppercase; }
-td.num, th.num { text-align: right; }
-.faixa-qtd { width: 64px; padding: 5px; text-align: center; }
-.btn-primary { background: #0b3d91; color: #fff; border: none; border-radius: 6px; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; cursor: pointer; }
-.btn-primary:disabled { opacity: .6; }
-#resultado { display: none; }
-.total-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
-.total-line.grand { font-size: 17px; font-weight: bold; color: #0b3d91; border-top: 2px solid #0b3d91; margin-top: 6px; padding-top: 8px; }
-.desconto { color: #b00020; }
-.note { font-size: 11px; color: #888; margin-top: 6px; }
-.err { background: #fdecea; color: #b00020; padding: 8px 10px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; display: none; }
-.badge { display: inline-block; background: #e8f0fe; color: #0b3d91; border-radius: 4px; padding: 2px 6px; font-size: 11px; margin-left: 6px; }
-.aviso-nova-aba { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #7a5b00; margin-bottom: 12px; display: none; }
-.aviso-nova-aba a { color: #0b3d91; font-weight: bold; }
-</style>
-</head>
-<body>
+Title: Projeto sem título - Editor do projeto - Apps Script
+URL: https://script.google.com/u/1/home/projects/1ZhnfC7fGMmKwVCQIIFLTlRVfHS9F5NORFN0-JrKz5MfIokoZxUJXIyEw/edit
+Source element: <body>
+---
+// ═══════════════════════════════════════════════════════════════════
+// HAPVIDA • DUTY SAÚDE — GERADOR DE PROPOSTA PDF
+// Fundo azul garantido via Google Slides API
+// ═══════════════════════════════════════════════════════════════════
 
-<h1>🏥 Simulador Hapvida &middot; Duty Sa&uacute;de</h1>
-<p class="sub">Pre&ccedil;os lidos em tempo real da tabela oficial. Preencha os filtros e a quantidade de vidas por faixa et&aacute;ria.</p>
-<div class="aviso-nova-aba" id="avisoNovaAba">
-⚠️ Voc&ecirc; est&aacute; usando o simulador dentro do CRM. O bot&atilde;o "Gerar PDF" mostra a proposta na tela, mas este painel n&atilde;o permite baixar ou imprimir o PDF diretamente por aqui.
-Para baixar/imprimir, abra o simulador numa aba separada:
-<a href="https://simulador-hapvida.pages.dev/" target="_blank" rel="noopener">simulador-hapvida.pages.dev</a>
-(se o clique n&atilde;o abrir nada, clique com o bot&atilde;o direito no link e escolha "Abrir link em nova guia").
-</div>
+function gerarProposta() {
+var ss = SpreadsheetApp.getActiveSpreadsheet();
+var ws = ss.getSheetByName("Simulador Individual") || ss.getSheetByName("Simulador de Preços");
+if (!ws) { SpreadsheetApp.getUi().alert("Aba 'Simulador de Preços' não encontrada."); return; }
 
-<div class="tabs">
-<div class="tab-btn active" id="tabIndividual" onclick="setTipo('individual')">Individual</div>
-<div class="tab-btn" id="tabPJ" onclick="setTipo('pj')">Empresarial (PJ)</div>
-</div>
+var LOGO_HAPVIDA = "[[BASE64_LOGO_STRIPPED]]";
+var LOGO_DS = "[[BASE64_LOGO_STRIPPED]]";
+var IMG_WPP = "[[BASE64_LOGO_STRIPPED]]";
+var IMG_VERIFIED = "[[BASE64_LOGO_STRIPPED]]";
 
-<div class="card">
-<div class="row">
-<div class="field">
-<label>Nome do cliente / raz&atilde;o social</label>
-<input type="text" id="nomeCliente" placeholder="Opcional">
-</div>
-<div class="field">
-<label id="labelDocumento">CPF</label>
-<input type="text" id="documentoCliente" placeholder="Opcional">
-</div>
-</div>
-<div class="row">
-<div class="field">
-<label>Consultor</label>
-<input type="text" id="nomeConsultor" placeholder="Opcional">
-</div>
-<div class="field">
-<label>Telefone do consultor</label>
-<input type="text" id="telefoneConsultor" placeholder="Opcional">
-</div>
-</div>
+var nomeBenef = String(ws.getRange("A6").getValue() || "—");
+var cpf = String(ws.getRange("D6").getValue() || "—");
+var nomeCons = String(ws.getRange("A10").getValue() || "—");
+var telCons = String(ws.getRange("C10").getValue() || "—");
+var copart = String(ws.getRange("A14").getValue() || "—");
+var acomod = String(ws.getRange("C14").getValue() || "—");
+var promo15 = String(ws.getRange("F15").getValue() || "Não");
 
-<div class="row" id="rowPorte" style="display:none">
-<div class="field">
-<label>Porte da empresa</label>
-<select id="porte">
-<option value="Porte I (2 a 15 vidas)">Porte I (2 a 15 vidas)</option>
-<option value="Porte II (16 a 29 vidas)">Porte II (16 a 29 vidas)</option>
-</select>
-</div>
-</div>
+var now = new Date();
+var timezone = Session.getScriptTimeZone();
+var dataHj = Utilities.formatDate(now, timezone, "dd/MM/yyyy");
+var hora = Utilities.formatDate(now, timezone, "HH:mm");
+function pad(n) { return String(n).padStart(2, "0"); }
 
-<div class="row">
-<div class="field">
-<label>Coparticipa&ccedil;&atilde;o</label>
-<select id="coparticipacao">
-<option value="Parcial">Parcial</option>
-<option value="Total">Total</option>
-</select>
-</div>
-<div class="field">
-<label>Acomoda&ccedil;&atilde;o</label>
-<select id="acomodacao">
-<option value="Enfermaria">Enfermaria</option>
-<option value="Apartamento">Apartamento</option>
-<option value="Ambulatorial">S/ACOM (Ambulatorial)</option>
-</select>
-</div>
-</div>
+var valid7 = new Date(now.getTime() + 7*24*60*60*1000);
+var mesDif = valid7.getMonth() !== now.getMonth();
+var diaFinal = mesDif ? new Date(now.getFullYear(), now.getMonth()+1, 0).getDate() : valid7.getDate();
+var dataVal = Utilities.formatDate(new Date(now.getFullYear(), now.getMonth(), diaFinal), timezone, "dd/MM/yyyy");
+var validadeTexto = mesDif
+? "Valida ate " + dataVal + " (limitada ao ultimo dia do mes)."
+: "Valida ate " + dataVal + " (7 dias corridos).";
 
-<div class="row">
-<div class="field toggle">
-<input type="checkbox" id="promo">
-<label style="margin:0">🏷️ Promo&ccedil;&atilde;o 15% (3 primeiras mensalidades)</label>
-</div>
-<div class="field toggle" id="rowOdonto" style="display:none">
-<input type="checkbox" id="odonto">
-<label style="margin:0">🦷 Odonto opcional (+R$ 23,25/vida)</label>
-</div>
-</div>
-</div>
-
-<div class="card">
-<label style="margin-bottom:8px">👥 Vidas por faixa et&aacute;ria</label>
-<table>
-<thead><tr><th>Faixa et&aacute;ria</th><th class="num">Qtde de vidas</th></tr></thead>
-<tbody id="faixasBody"></tbody>
-</table>
-</div>
-
-<div class="err" id="erroBox"></div>
-<button class="btn-primary" id="btnCalcular" onclick="calcular()">Calcular simula&ccedil;&atilde;o</button>
-
-<div class="card" id="resultado">
-<table>
-<thead><tr><th>Faixa</th><th class="num">Vidas</th><th class="num">R$/vida</th><th class="num">Subtotal</th></tr></thead>
-<tbody id="resultLinhas"></tbody>
-</table>
-<div id="resumoTotais" style="margin-top:10px"></div>
-<button class="btn-primary" id="btnPDF" style="margin-top:10px;background:#F08000" onclick="gerarPDF()">📄 Gerar PDF da Proposta</button>
-</div>
-
-<script>
-var FAIXAS = [];
-var TIPO = 'individual';
-var ULTIMO_INPUT = null;
-var ULTIMO_TIPO = null;
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec';
-
-function setTipo(t) {
-TIPO = t;
-document.getElementById('tabIndividual').className = 'tab-btn' + (t === 'individual' ? ' active' : '');
-document.getElementById('tabPJ').className = 'tab-btn' + (t === 'pj' ? ' active' : '');
-document.getElementById('rowPorte').style.display = (t === 'pj') ? 'flex' : 'none';
-document.getElementById('rowOdonto').style.display = (t === 'pj') ? 'flex' : 'none';
-document.getElementById('resultado').style.display = 'none';
-document.getElementById('labelDocumento').textContent = (t === 'pj') ? 'CNPJ' : 'CPF';
-document.getElementById('documentoCliente').placeholder = (t === 'pj') ? 'Opcional (CNPJ)' : 'Opcional (CPF)';
+var faixasNomes = ["00 a 18 anos","19 a 23 anos","24 a 28 anos","29 a 33 anos",
+"34 a 38 anos","39 a 43 anos","44 a 48 anos","49 a 53 anos","54 a 58 anos","59 anos ou mais"];
+var linhasTabela = [], totalVidas = 0, totalMens = 0;
+for (var i = 0; i < 10; i++) {
+var qtd = Number(ws.getRange(19+i, 2).getValue()) || 0;
+var mens = Number(ws.getRange(19+i, 3).getValue()) || 0;
+if (qtd > 0) {
+linhasTabela.push({faixa: faixasNomes[i], qtd: qtd, mens: mens, sub: qtd*mens});
+totalVidas += qtd; totalMens += qtd*mens;
+}
 }
 
-function montarFaixas(lista) {
-FAIXAS = lista;
-var body = document.getElementById('faixasBody');
-body.innerHTML = '';
-lista.forEach(function(nome, i) {
-var tr = document.createElement('tr');
-tr.innerHTML = '<td>' + nome + '</td><td class="num"><input type="number" min="0" step="1" class="faixa-qtd" id="qtd_' + i + '" value=""></td>';
-body.appendChild(tr);
-});
+var txAdesao = 35, vlLiquido, mensRecorr, mens4mes = null;
+if (promo15 === "Sim") {
+vlLiquido = totalMens*0.85; mensRecorr = totalMens*0.85;
+mens4mes = totalVidas >= 2 ? totalMens*0.95 : totalMens;
+} else if (totalVidas >= 2) {
+vlLiquido = totalMens*0.95; mensRecorr = totalMens*0.95;
+} else { vlLiquido = totalMens; mensRecorr = totalMens; }
+var total1mes = vlLiquido + txAdesao;
+
+function fmt(v) {
+var n = Number(v).toFixed(2).split(".");
+return "R$ " + n[0].replace(/\B(?=(\d{3})+(?!\d))/g,".") + "," + n[1];
 }
 
-function coletarVidas() {
-var vidas = [];
-for (var i = 0; i < FAIXAS.length; i++) {
-var el = document.getElementById('qtd_' + i);
-var v = el && el.value ? parseInt(el.value, 10) : 0;
-vidas.push(isNaN(v) ? 0 : v);
-}
-return vidas;
-}
-
-function fmt(n) {
-return 'R$ ' + Number(n).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-}
-
-function mostrarErro(msg) {
-var box = document.getElementById('erroBox');
-box.textContent = msg;
-box.style.display = msg ? 'block' : 'none';
-}
-
-function calcular() {
-mostrarErro('');
-var vidas = coletarVidas();
-var totalVidas = vidas.reduce(function(a, b) { return a + b; }, 0);
-if (totalVidas <= 0) {
-mostrarErro('Informe ao menos 1 vida em alguma faixa etária.');
-return;
-}
-var btn = document.getElementById('btnCalcular');
-btn.disabled = true;
-btn.textContent = 'Calculando...';
-
-var input = {
-coparticipacao: document.getElementById('coparticipacao').value,
-acomodacao: document.getElementById('acomodacao').value,
-promo: document.getElementById('promo').checked,
-vidas: vidas,
-nomeCliente: document.getElementById('nomeCliente').value,
-documentoCliente: document.getElementById('documentoCliente').value,
-nomeConsultor: document.getElementById('nomeConsultor').value,
-telefoneConsultor: document.getElementById('telefoneConsultor').value
-};
-
-var onOk = function(res) {
-btn.disabled = false;
-btn.textContent = 'Calcular simulação';
-renderResultado(res);
-};
-var onErr = function(err) {
-btn.disabled = false;
-btn.textContent = 'Calcular simulação';
-mostrarErro('Erro ao calcular: ' + (err && err.message ? err.message : err));
-};
-
-if (TIPO === 'pj') {
-input.porte = document.getElementById('porte').value;
-input.odonto = document.getElementById('odonto').checked;
-}
-
-ULTIMO_INPUT = input;
-ULTIMO_TIPO = TIPO;
-
-fetch(EXEC_URL + '?action=simular&tipo=' + TIPO + '&input=' + encodeURIComponent(JSON.stringify(input))).then(function(r){return r.json();}).then(function(res){ if (res && res.error) { onErr(res); } else { onOk(res); } }).catch(onErr);
-}
-
-function base64ParaBlobUrl(base64, mime) {
-var byteChars = atob(base64);
-var byteNumbers = new Array(byteChars.length);
-for (var i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
-var byteArray = new Uint8Array(byteNumbers);
-var blob = new Blob([byteArray], {type: mime});
-return URL.createObjectURL(blob);
-}
-
-function gerarPDF() {
-if (!ULTIMO_INPUT) return;
-var novaJanela = null;
-var podeAbrirNovaAba = true;
-try {
-novaJanela = window.open('', '_blank');
-if (!novaJanela) podeAbrirNovaAba = false;
-} catch (eOpen) {
-podeAbrirNovaAba = false;
-}
-if (novaJanela && novaJanela.document) {
-try {
-novaJanela.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gerando proposta...</title></head><body style="font-family:Arial;padding:40px;text-align:center;color:#0b3d91"><h2>Gerando PDF da proposta...</h2><p>Aguarde, isso leva alguns segundos.</p></body></html>');
-} catch (eWrite) {}
-}
-var btn = document.getElementById('btnPDF');
-var textoOriginal = btn.textContent;
-btn.disabled = true;
-btn.textContent = 'Gerando PDF...';
-fetch(EXEC_URL + '?action=gerarPropostaPDF&tipo=' + ULTIMO_TIPO + '&input=' + encodeURIComponent(JSON.stringify(ULTIMO_INPUT)))
-.then(function(r){ return r.json(); })
-.then(function(res) {
-btn.disabled = false;
-btn.textContent = textoOriginal;
-if (res && res.error) {
-mostrarErro('Erro ao gerar PDF: ' + res.error);
-if (novaJanela) { try { novaJanela.close(); } catch(e3) {} }
-return;
-}
-var blobUrl;
-try {
-blobUrl = base64ParaBlobUrl(res.pdfBase64, 'application/pdf');
-} catch (eBlob) {
-mostrarErro('Erro ao montar o PDF: ' + (eBlob && eBlob.message ? eBlob.message : eBlob));
-if (novaJanela) { try { novaJanela.close(); } catch(e5) {} }
-return;
-}
-if (podeAbrirNovaAba && novaJanela) {
-try {
-novaJanela.location.href = blobUrl;
-return;
-} catch (eNav) { /* cai no fallback abaixo */ }
-}
-window.location.href = blobUrl;
-})
-.catch(function(err) {
-btn.disabled = false;
-btn.textContent = textoOriginal;
-mostrarErro('Erro ao gerar PDF: ' + (err && err.message ? err.message : err));
-if (novaJanela) { try { novaJanela.close(); } catch(e4) {} }
-});
-}
-
-function renderResultado(res) {
-var body = document.getElementById('resultLinhas');
-body.innerHTML = '';
-res.linhas.forEach(function(l) {
-if (!l.qtd) return;
-var tr = document.createElement('tr');
-tr.innerHTML = '<td>' + l.faixa + '</td><td class="num">' + l.qtd + '</td><td class="num">' + fmt(l.precoVida) + '</td><td class="num">' + fmt(l.subtotal) + '</td>';
-body.appendChild(tr);
-});
-
-var html = '';
-if (res.tipo === 'individual') {
-html += linha('Subtotal (' + res.totalVidas + ' vida' + (res.totalVidas > 1 ? 's' : '') + ')', res.subtotal);
-if (res.desconto5) html += linha('Desconto 5% (2+ vidas)', res.desconto5, true);
-if (res.desconto15) html += linha('Desconto 15% (promoção)', res.desconto15, true);
-html += linha('Valor líquido / mensalidade', res.liquido);
-html += linha('Taxa de adesão (única)', res.adesao);
-html += linha('Total 1º mês', res.total1Mes, false, true);
-html += linha('Mensalidade recorrente (2º/3º mês)', res.recorrente);
-if (res.apartir4Mes !== null) html += linha('A partir do 4º mês', res.apartir4Mes);
+var odoInfo = acomod === "S/ACOM (Ambulatorial)" ? "Odonto Urgencia e Emergencia (incluso)" : "Odonto Cobertura Completa (incluso)";
+var benefTitle = acomod === "S/ACOM (Ambulatorial)" ? "PLANO AMBULATORIAL" : acomod === "Enfermaria" ? "PLANO ENFERMARIA COMPLETO" : "PLANO APARTAMENTO COMPLETO";
+var benefItems;
+if (acomod === "S/ACOM (Ambulatorial)") {
+benefItems = [
+{icon:"&#128309;", label:"Urgência"},
+{icon:"&#128992;", label:"Emergência"},
+{icon:"&#128993;", label:"Consultas"},
+{icon:"&#128309;", label:"Exames Simples"},
+{icon:"&#128992;", label:"Exames Complexos"},
+{icon:"&#128993;", label:"Terapias"},
+{icon:"&#128309;", label:"Odontologia Urgente"}
+];
 } else {
-html += linha('Bruto sem odonto (' + res.totalVidas + ' vida' + (res.totalVidas > 1 ? 's' : '') + ')', res.brutoSemOdonto);
-if (res.odonto) html += linha('Odonto opcional', res.odontoValor);
-if (res.desconto15) html += linha('Desconto 15% (promoção)', res.desconto15, true);
-html += linha('Valor líquido (plano' + (res.odonto ? ' + odonto' : '') + ')', res.liquido);
-html += linha('Taxa de adesão (R$20/vida, única)', res.adesao);
-html += linha('Total 1º mês', res.total1Mes, false, true);
-html += linha('Mensalidade recorrente (2º/3º mês)', res.liquido);
-if (res.apartir4Mes !== null) html += linha('A partir do 4º mês', res.apartir4Mes);
-}
-document.getElementById('resumoTotais').innerHTML = html;
-document.getElementById('resultado').style.display = 'block';
-document.getElementById('resultado').scrollIntoView({behavior: 'smooth'});
-}
-
-function linha(label, valor, isDesconto, grand) {
-var cls = 'total-line' + (grand ? ' grand' : '') + (isDesconto ? ' desconto' : '');
-return '<div class="' + cls + '"><span>' + label + '</span><span>' + (isDesconto ? '- ' : '') + fmt(Math.abs(valor)) + '</span></div>';
+benefItems = [
+{icon:"&#128309;", label:"Urgência"},
+{icon:"&#128992;", label:"Emergência"},
+{icon:"&#128993;", label:"Consultas"},
+{icon:"&#128309;", label:"Exames Simples"},
+{icon:"&#128992;", label:"Exames Complexos"},
+{icon:"&#128993;", label:"Terapias"},
+{icon:"&#128309;", label:"Odontologia"},
+{icon:"&#128992;", label:"Internação"},
+{icon:"&#128993;", label:"Cirurgias"},
+{icon:"&#128309;", label:"Obstetrícia"}
+];
 }
 
+// ── Monta HTML com TABELAS e bgcolor (compatível com Google PDF) ──
+// Truque: embora bgcolor em divs seja ignorado, o Google RESPEITA
+// bgcolor em <table>, <tr>, <td> E TAMBÉM background-image: linear-gradient via @page
+// A solução GARANTIDA é usar background em @page no CSS + body
+// combinado com -webkit-print-color-adjust: exact
+
+var AZUL = "#1030A0";
+var AZUL2 = "#1535AA";
+var CARD = "#1840C8";
+var AMAR = "#F0C020";
+var LARAN = "#F08000";
+var VERM = "#C01010";
+var BRAN = "#FFFFFF";
+var ESCURO = "#0A1F70";
+
+// Linhas da tabela de faixas
+var faixaRows = "";
+for (var k = 0; k < linhasTabela.length; k++) {
+var r = linhasTabela[k];
+var bg = k%2===0 ? AZUL2 : CARD;
+faixaRows += "<tr>"
++ "<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+BRAN+";font-size:13px'>"+r.faixa+"</td>"
++ "<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+AMAR+";font-size:14px;font-weight:bold;text-align:center'>"+r.qtd+"</td>"
++ "<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+BRAN+";font-size:13px;text-align:right'>"+fmt(r.mens)+"</td>"
++ "<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+AMAR+";font-size:14px;font-weight:bold;text-align:right'>"+fmt(r.sub)+"</td>"
++ "</tr>";
+}
+faixaRows += "<tr bgcolor='"+LARAN+"'>"
++ "<td bgcolor='"+LARAN+"' colspan='2' style='background:"+LARAN+";padding:10px 12px;color:"+BRAN+";font-weight:900;font-size:14px'>TOTAL — "+totalVidas+" vida"+(totalVidas>1?"s":"")+"</td>"
++ "<td bgcolor='"+LARAN+"' style='background:"+LARAN+"'></td>"
++ "<td bgcolor='"+LARAN+"' style='background:"+LARAN+";padding:10px 12px;color:"+BRAN+";font-weight:900;font-size:14px;text-align:right'>"+fmt(totalMens)+"</td>"
++ "</tr>";
+
+// Chips de benefícios
+// Monta grid 2 colunas com ícone colorido
+var chips = "<table width='100%' cellpadding='0' cellspacing='0'>";
+for (var b = 0; b < benefItems.length; b += 2) {
+chips += "<tr>";
+var it1 = benefItems[b];
+chips += "<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:7px 10px;width:50%;vertical-align:middle'>"
++ "<span style='font-size:16px;vertical-align:middle;margin-right:6px'>"+it1.icon+"</span>"
++ "<span style='font-size:13px;font-weight:700;color:"+BRAN+";vertical-align:middle'>"+it1.label+"</span>"
++ "</td>";
+if (b+1 < benefItems.length) {
+var it2 = benefItems[b+1];
+chips += "<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:7px 10px;width:50%;vertical-align:middle'>"
++ "<span style='font-size:16px;vertical-align:middle;margin-right:6px'>"+it2.icon+"</span>"
++ "<span style='font-size:13px;font-weight:700;color:"+BRAN+";vertical-align:middle'>"+it2.label+"</span>"
++ "</td>";
+} else {
+chips += "<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:7px 10px'></td>";
+}
+chips += "</tr>";
+}
+chips += "</table>";
+
+// Desconto
+var descHTML = "";
+if (promo15 === "Sim") {
+descHTML = "<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+VERM+"' style='background:"+VERM+";padding:10px 16px;color:"+BRAN+";font-weight:900;font-size:13px'>&#127991; PROMOCAO ATIVA</td></tr>"
++"<tr><td bgcolor='#9B0000' style='background:#9B0000;padding:10px 16px;color:"+BRAN+";font-size:13px'>"
++"<b>15% de desconto</b> nas 3 primeiras mensalidades<br>"
++(totalVidas>=2?"<b>5% de desconto</b> a partir da 4a mensalidade (vitalicio)":"")
++"</td></tr></table>";
+} else if (totalVidas >= 2) {
+descHTML = "<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+LARAN+"' style='background:"+LARAN+";padding:10px 16px;color:"+BRAN+";font-weight:900;font-size:13px'>&#9989; DESCONTO ESPECIAL</td></tr>"
++"<tr><td bgcolor='#C86000' style='background:#C86000;padding:10px 16px;color:"+BRAN+";font-size:13px'>"
++"<b>5% de desconto</b> desde a 1a mensalidade (a partir de 2 vidas)</td></tr></table>";
+}
+
+// Coparticipação
+var isCP = copart.indexOf("Parcial") >= 0;
+var cpData = [
+["Consultas Eletivas", "—","—", "—","Valor fixo R$ 25,42"],
+["Consultas de Urgencia", "—","—", "—","Valor fixo R$ 43,63"],
+["Exames Simples", "—","—", "40,00%","Limitado a R$ 45,79"],
+["Exames Complexos", "—","—", "40,00%","Limitado a R$ 114,48"],
+["Terapias Especiais", "—","Valor fixo R$ 78,87","—","Valor fixo R$ 78,87"],
+["Demais Terapias", "—","Valor fixo R$ 24,27","—","Valor fixo R$ 24,27"]
+];
+var cpRows = "<tr bgcolor='"+CARD+"'>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:8px 12px;color:"+AMAR+";font-weight:800;font-size:11px'>PROCEDIMENTO</td>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:8px 12px;color:"+AMAR+";font-weight:800;font-size:11px;text-align:center'>VALOR</td>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:8px 12px;color:"+AMAR+";font-weight:800;font-size:11px;text-align:center'>VALOR MAXIMO</td>"
++"</tr>";
+for (var ci = 0; ci < cpData.length; ci++) {
+var cd = cpData[ci];
+var v1 = isCP ? cd[1] : cd[3];
+var v2 = isCP ? cd[2] : cd[4];
+var bgcp = ci%2===0 ? AZUL2 : CARD;
+cpRows += "<tr>"
++"<td bgcolor='"+bgcp+"' style='background:"+bgcp+";padding:8px 12px;color:"+BRAN+";font-size:12px'>"+cd[0]+"</td>"
++"<td bgcolor='"+bgcp+"' style='background:"+bgcp+";padding:8px 12px;color:"+(v1==="—"?"rgba(255,255,255,0.3)":AMAR)+";font-weight:"+(v1==="—"?"normal":"700")+";font-size:12px;text-align:center'>"+v1+"</td>"
++"<td bgcolor='"+bgcp+"' style='background:"+bgcp+";padding:8px 12px;color:"+(v2==="—"?"rgba(255,255,255,0.3)":AMAR)+";font-weight:"+(v2==="—"?"normal":"700")+";font-size:12px;text-align:center'>"+v2+"</td>"
++"</tr>";
+}
+
+// ── Função helper para money box ──────────────────────────────────
+function moneyRow(label, value, bgLabel, bgValue, colorValue) {
+return "<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:8px;border-radius:10px;overflow:hidden'><tr>"
++"<td bgcolor='"+bgLabel+"' style='background:"+bgLabel+";padding:12px 16px;color:"+BRAN+";font-weight:700;font-size:13px'>"+label+"</td>"
++"<td bgcolor='"+(bgValue||bgLabel)+"' style='background:"+(bgValue||bgLabel)+";padding:12px 16px;color:"+colorValue+";font-weight:900;font-size:24px;text-align:right;white-space:nowrap'>"+value+"</td>"
++"</tr></table>";
+}
+
+// ════════════════════════════════════════════════════════════════
+// HTML FINAL
+// Uso de: @page background, body bgcolor, table bgcolor em TODAS as células
+// ════════════════════════════════════════════════════════════════
+var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
++"<style>"
++"@page { size: A4 portrait; margin: 0; background: "+AZUL+"; -webkit-print-color-adjust: exact; print-color-adjust: exact; }"
++"html, body { background: "+AZUL+" !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; margin:0; padding:0; font-family:Arial,sans-serif; }"
++"* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }"
++"</style>"
++"</head>"
++"<body bgcolor='"+AZUL+"' style='background:"+AZUL+" !important;padding:0;margin:0'>"
++"<table width='100%' cellpadding='0' cellspacing='0' bgcolor='"+AZUL+"' style='background:"+AZUL+" !important;min-height:297mm'>"
++"<tr><td bgcolor='"+AZUL+"' style='background:"+AZUL+" !important;padding:24px 28px'>"
+
+// CABEÇALHO
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:18px;border-bottom:2px solid rgba(255,255,255,0.15);padding-bottom:14px'><tr>"
++"<td bgcolor='"+AZUL+"' style='background:"+AZUL+"'><img src='"+LOGO_HAPVIDA+"' height='55' style='display:block'></td>"
++"<td bgcolor='"+AZUL+"' style='background:"+AZUL+";text-align:right;vertical-align:top'>"
++"<span style='font-size:10px;color:rgba(255,255,255,0.5)'>Proposta gerada em</span><br>"
++"<span style='font-size:15px;font-weight:700;color:"+BRAN+"'>"+dataHj+" as "+hora+"</span>"
++"</td></tr></table>"
+
+// TÍTULO
++"<div style='font-size:26px;font-weight:900;color:"+BRAN+";line-height:1.2;margin-bottom:5px'>Proposta de<br>Plano de Saude</div>"
++"<div style='height:4px;width:45px;background:"+LARAN+";border-radius:2px;margin-bottom:18px'></div>"
+
+// BENEFICIÁRIO + CONSULTOR (2 colunas)
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px'><tr>"
++"<td width='49%' bgcolor='"+CARD+"' style='background:"+CARD+";border-radius:10px;padding:14px 16px;vertical-align:top'>"
++"<div style='font-size:11px;font-weight:800;color:"+AMAR+";letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:6px;margin-bottom:10px'>&#128203; BENEFICIARIO</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>NOME COMPLETO</div><div style='font-size:14px;font-weight:700;color:"+BRAN+";margin-bottom:10px'>"+nomeBenef+"</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>CPF</div><div style='font-size:14px;font-weight:700;color:"+BRAN+"'>"+cpf+"</div>"
++"</td>"
++"<td width='2%'></td>"
++"<td width='49%' bgcolor='"+CARD+"' style='background:"+CARD+";border-radius:10px;padding:14px 16px;vertical-align:top'>"
++"<div style='font-size:11px;font-weight:800;color:"+AMAR+";letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:6px;margin-bottom:10px'>&#128100; CONSULTOR</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>NOME</div><div style='font-size:14px;font-weight:700;color:"+BRAN+";margin-bottom:10px'>"+nomeCons+"</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>TELEFONE</div><div style='font-size:14px;font-weight:700;color:"+BRAN+"'>"+telCons+"</div>"
++"</td></tr></table>"
+
+// PLANO
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+CARD+"' style='background:"+CARD+";padding:10px 16px;color:"+AMAR+";font-weight:800;font-size:11px;letter-spacing:1px'>&#9881; DETALHES DO PLANO</td></tr>"
++"<tr><td bgcolor='"+CARD+"' style='background:"+CARD+";padding:12px 16px'>"
++"<table width='100%' cellpadding='0' cellspacing='0'><tr>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";width:50%;vertical-align:top'><div style='font-size:10px;color:rgba(255,255,255,0.5)'>COPARTICIPACAO</div><div style='font-size:13px;font-weight:700;color:"+BRAN+"'>"+copart+"</div></td>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";vertical-align:top'><div style='font-size:10px;color:rgba(255,255,255,0.5)'>ACOMODACAO</div><div style='font-size:13px;font-weight:700;color:"+BRAN+"'>"+acomod+"</div></td>"
++"</tr></table>"
++(promo15==="Sim"?"<div style='margin-top:8px'><span style='background:#C01010;color:"+BRAN+";border-radius:16px;padding:4px 12px;font-size:11px;font-weight:700'>&#127991; PROMOCAO 15% ATIVA</span></div>":"")
++"<div style='margin-top:8px'><span style='background:"+AZUL2+";color:"+AMAR+";border-radius:16px;padding:4px 12px;font-size:11px;font-weight:700'>&#129463; "+odoInfo+"</span></div>"
++"</td></tr></table>"
+
+// BENEFÍCIOS
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+CARD+"' style='background:"+CARD+";padding:10px 16px;color:"+AMAR+";font-weight:800;font-size:11px;letter-spacing:1px'>&#9989; "+benefTitle+" — COM DIREITO A:</td></tr>"
++"<tr><td bgcolor='"+CARD+"' style='background:"+CARD+";padding:10px 16px 14px'>"+chips+"</td></tr>"
++"</table>"
+
+// DISTRIBUIÇÃO DE VIDAS
++"<div style='font-size:20px;font-weight:900;color:"+BRAN+";margin-bottom:5px'>Distribuicao de Vidas</div>"
++"<div style='height:3px;width:40px;background:"+LARAN+";border-radius:2px;margin-bottom:10px'></div>"
++"<table width='100%' cellpadding='0' cellspacing='2' style='border-collapse:separate;border-spacing:0 2px;margin-bottom:12px'>"
++"<tr>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:8px 12px;color:"+AMAR+";font-weight:800;font-size:11px'>FAIXA ETARIA</td>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:8px 12px;color:"+AMAR+";font-weight:800;font-size:11px;text-align:center'>QTDE</td>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:8px 12px;color:"+AMAR+";font-weight:800;font-size:11px;text-align:right'>MENSALIDADE/VIDA</td>"
++"<td bgcolor='"+CARD+"' style='background:"+CARD+";padding:8px 12px;color:"+AMAR+";font-weight:800;font-size:11px;text-align:right'>SUBTOTAL</td>"
++"</tr>"
++ faixaRows
++"</table>"
+
+// DESCONTOS
++ descHTML
+
+// RESUMO FINANCEIRO
++"<div style='font-size:20px;font-weight:900;color:"+BRAN+";margin-bottom:5px;margin-top:4px'>Resumo Financeiro</div>"
++"<div style='height:3px;width:40px;background:"+LARAN+";border-radius:2px;margin-bottom:10px'></div>"
++ "<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:8px;border-radius:10px;overflow:hidden'><tr>"
++ "<td bgcolor='"+LARAN+"' style='background:"+LARAN+";padding:12px 16px 6px 16px;color:"+BRAN+";font-weight:700;font-size:13px'>&#128176; TOTAL 1&ordm; MES</td>"
++ "<td bgcolor='"+LARAN+"' rowspan='2' style='background:"+LARAN+";padding:12px 16px;color:"+BRAN+";font-weight:900;font-size:24px;text-align:right;vertical-align:middle;white-space:nowrap'>" + fmt(total1mes) + "</td>"
++ "</tr><tr>"
++ "<td bgcolor='"+LARAN+"' style='background:"+LARAN+";padding:0 16px 10px 16px;color:rgba(255,255,255,0.85);font-size:11px'>&#128179; TX. ADESAO: "+fmt(txAdesao)+" — cobrada uma unica vez no 1o mes</td>"
++ "</tr></table>"
++ moneyRow(promo15==="Sim"?"&#128197; 2a e 3a Mensalidade (com 15%)":(totalVidas>=2?"&#128197; Mensalidade Recorrente (com 5%)":"&#128197; Mensalidade Recorrente"), fmt(mensRecorr), AZUL2, AZUL2, AMAR)
++ (mens4mes!==null ? moneyRow("&#128197; A partir do 4&ordm; mes"+(totalVidas>=2?" (com 5%)":""), fmt(mens4mes), AZUL2, AZUL2, AMAR) : "")
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:8px;overflow:hidden'>"
+
+// COPARTICIPAÇÃO
++"<div style='font-size:20px;font-weight:900;color:"+BRAN+";margin-bottom:5px'>Coparticipacao por Procedimento</div>"
++"<div style='height:3px;width:40px;background:"+LARAN+";border-radius:2px;margin-bottom:10px'></div>"
++"<table width='100%' cellpadding='0' cellspacing='2' style='border-collapse:separate;border-spacing:0 2px;margin-bottom:6px'>"+cpRows+"</table>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:12px'>Obs: Cobranca por procedimento realizado.</div>"
+
+// VALIDADE
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:8px;overflow:hidden'>"
++"<tr><td bgcolor='"+AZUL2+"' style='background:"+AZUL2+";padding:11px 16px;color:"+BRAN+";font-size:12px'>&#9203; <b>VALIDADE:</b> "+validadeTexto+"</td></tr>"
++"</table>"
+
+// WHATSAPP — dois numeros empilhados
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+AZUL2+"' style='background:"+AZUL2+";padding:12px 20px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.15)'>"
++"<img src='"+IMG_WPP+"' width='34' height='34' style='vertical-align:middle;margin-right:10px'>"
++"<span style='font-size:22px;font-weight:900;color:"+BRAN+";letter-spacing:1px;vertical-align:middle'>(85) 3051-3333</span>"
++"<img src='"+IMG_VERIFIED+"' width='30' height='30' style='vertical-align:middle;margin-left:10px'>"
++"</td></tr>"
++"<tr><td bgcolor='"+AZUL2+"' style='background:"+AZUL2+";padding:12px 20px;text-align:center'>"
++"<img src='"+IMG_WPP+"' width='34' height='34' style='vertical-align:middle;margin-right:10px'>"
++"<span style='font-size:22px;font-weight:900;color:"+BRAN+";letter-spacing:1px;vertical-align:middle'>0800 121 3333</span>"
++"<img src='"+IMG_VERIFIED+"' width='30' height='30' style='vertical-align:middle;margin-left:10px'>"
++"</td></tr>"
++"</table>"
+
+// RODAPÉ
++"<table width='100%' cellpadding='0' cellspacing='0' style='border-radius:10px;overflow:hidden;margin-bottom:10px'>"
++"<tr bgcolor='"+ESCURO+"'>"
++"<td bgcolor='"+ESCURO+"' style='background:"+ESCURO+";padding:14px 16px;vertical-align:middle;width:100px'><img src='"+LOGO_DS+"' width='85' style='display:block'></td>"
++"<td bgcolor='"+ESCURO+"' style='background:"+ESCURO+";padding:14px 16px;text-align:center;vertical-align:middle'>"
++"<div style='font-size:12px;font-weight:700;color:"+BRAN+"'>Hapvida NotreDame Intermedica</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.55);margin-top:3px'>Duty Saude Concessionaria Oficial</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px'>Regulamentado pela ANS | Tabela 3T2026 | Vigencia: 01/07/2026 a 30/09/2026</div>"
++"</td></tr></table>"
++"<div style='font-size:9px;color:rgba(255,255,255,0.35);text-align:center'>Valores referentes a Medica 1 com odonto incluso. Descontos nao incidem sobre TX. Adesao.</div>"
+
++"</td></tr></table>"
++"</body></html>";
+
+// ── Nome e geração ─────────────────────────────────────────────────
+var copartLabel = copart.indexOf("Parcial") >= 0 ? "CopartParcial" : "CopartTotal";
+var acomodLabel = acomod === "S/ACOM (Ambulatorial)" ? "SemAcomodacao" : acomod === "Enfermaria" ? "Enfermaria" : "Apartamento";
+var nomeLimpo = nomeBenef.replace(/[^a-zA-Z\u00C0-\u00FF\s]/g,"").trim().replace(/\s+/g,"_");
+var nomeArquivo = "Proposta_"+nomeLimpo+"_"+copartLabel+"_"+acomodLabel+"_"+dataHj.replace(/\//g,"-")+".pdf";
+
+// Salva HTML para uso pela função de imagem
 try {
-if (window.self !== window.top) {
-document.getElementById('avisoNovaAba').style.display = 'block';
-}
-} catch (eFrame) {
-document.getElementById('avisoNovaAba').style.display = 'block';
+PropertiesService.getScriptProperties().setProperty("LAST_PROPOSTA_HTML", html);
+PropertiesService.getScriptProperties().setProperty("LAST_PROPOSTA_NOME", nomeArquivo);
+} catch(e) { /* ignora se propriedade for grande demais */ }
+var blob = Utilities.newBlob(html, "text/html", "proposta.html");
+var pdfBlob = blob.getAs("application/pdf");
+pdfBlob.setName(nomeArquivo);
+var file = DriveApp.createFile(pdfBlob);
+file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+var url = "https://drive.google.com/uc?export=download&id=" + file.getId();
+
+var dlHtml = HtmlService.createHtmlOutput(
+"<html><head><style>body{font-family:Arial;text-align:center;padding:36px;background:#1030A0;color:#fff}"
++".btn{display:inline-block;margin-top:16px;padding:12px 26px;background:#F08000;color:#fff;font-size:14px;font-weight:bold;border-radius:10px;text-decoration:none}</style>"
++"<script>window.onload=function(){setTimeout(function(){window.location.href='"+url+"';},800);};</script></head><body>"
++"<p style='font-size:17px;font-weight:bold;color:#F0C020'>&#10003; Proposta gerada!</p>"
++"<p style='font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px'>"+nomeArquivo+"</p>"
++"<p style='font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px'>Download iniciara automaticamente...</p>"
++"<a class='btn' href='"+url+"' target='_blank'>&#11015; Baixar PDF</a>"
++"</body></html>"
+).setWidth(440).setHeight(220).setTitle("Baixando...");
+SpreadsheetApp.getUi().showModalDialog(dlHtml, "Proposta Gerada");
 }
 
-fetch(EXEC_URL + '?action=getFaixas').then(function(r){return r.json();}).then(function(f) {
-montarFaixas(f.individual);
-}).catch(function(err) {
-mostrarErro('Erro ao carregar tabela de precos: ' + (err && err.message ? err.message : err));
-});
-</script>
-</body>
-</html>
+// ═══════════════════════════════════════════════════════════════════
+// GERADOR DE PROPOSTA COMO IMAGEM (PNG)
+// Abre popup com a proposta renderizada + botão de download como PNG
+// ═══════════════════════════════════════════════════════════════════
+
+function gerarPropostaImagem() {
+var ss = SpreadsheetApp.getActiveSpreadsheet();
+var ws = ss.getSheetByName("Simulador Individual") || ss.getSheetByName("Simulador de Preços");
+if (!ws) { SpreadsheetApp.getUi().alert("Aba 'Simulador de Preços' não encontrada."); return; }
+
+// Reutiliza toda a lógica de dados da função principal
+var LOGO_HAPVIDA = gerarProposta.LOGO_HAPVIDA_VAL || "";
+
+// Chama a função que monta o HTML (extraída como helper)
+var htmlContent = montarHTML_(ws);
+if (!htmlContent) { SpreadsheetApp.getUi().alert("Erro ao montar proposta."); return; }
+
+var nomeArquivo = htmlContent.nomeArquivo;
+var html = htmlContent.html;
+
+// Popup com html2canvas para download como PNG
+var popupHtml = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
++ "<script src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'></script>"
++ "<style>"
++ "body{margin:0;padding:0;background:#1030A0;font-family:Arial,sans-serif}"
++ ".toolbar{position:fixed;top:0;left:0;right:0;z-index:9999;background:#0A1F70;"
++ "padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.4)}"
++ ".btn{padding:10px 20px;border-radius:8px;border:none;font-size:13px;font-weight:bold;"
++ "cursor:pointer;color:#fff}"
++ ".btn-png{background:#F08000}"
++ ".btn-fechar{background:#555}"
++ ".status{font-size:12px;color:rgba(255,255,255,0.7);margin-left:8px}"
++ "#proposta-wrapper{margin-top:60px;padding:16px}"
++ "#proposta-container{width:794px;margin:0 auto;background:#1030A0}"
++ "</style></head><body>"
++ "<div class='toolbar'>"
++ "<button class='btn btn-png' onclick='baixarPNG()'>&#11015; Baixar como PNG</button>"
++ "<span id='status' class='status'>Clique para baixar a proposta como imagem PNG</span>"
++ "</div>"
++ "<div id='proposta-wrapper'>"
++ "<div id='proposta-container'>"
++ html
++ "</div></div>"
++ "<script>"
++ "function baixarPNG() {"
++ " document.getElementById('status').textContent = 'Gerando imagem... aguarde.';"
++ " var el = document.getElementById('proposta-container');"
++ " html2canvas(el, {"
++ " scale: 2,"
++ " useCORS: true,"
++ " backgroundColor: '#1030A0',"
++ " logging: false,"
++ " width: 794,"
++ " windowWidth: 794"
++ " }).then(function(canvas) {"
++ " var link = document.createElement('a');"
++ " link.download = '" + nomeArquivo.replace('.pdf', '.png') + "';"
++ " link.href = canvas.toDataURL('image/png', 1.0);"
++ " link.click();"
++ " document.getElementById('status').textContent = '✅ Download iniciado!';"
++ " }).catch(function(err) {"
++ " document.getElementById('status').textContent = 'Erro: ' + err.message;"
++ " });"
++ "}"
++ "</script></body></html>";
+
+var output = HtmlService.createHtmlOutput(popupHtml)
+.setWidth(860)
+.setHeight(700)
+.setTitle("Proposta como Imagem PNG");
+
+SpreadsheetApp.getUi().showModalDialog(output, "Gerar Imagem PNG");
+}
+
+// ── Helper interno: monta objeto {html, nomeArquivo} ─────────────
+function montarHTML_(ws) {
+// Reutiliza exatamente a mesma lógica de dados e HTML da função principal
+// Chamamos gerarProposta internamente e capturamos o HTML
+// Solução: duplicar a lógica de dados aqui seria verboso.
+// Abordagem mais simples: chamar gerarProposta() e interceptar o blob.
+// Como o Apps Script não permite interceptar facilmente,
+// usamos PropertiesService para passar o HTML entre funções.
+
+var html = PropertiesService.getScriptProperties().getProperty("LAST_PROPOSTA_HTML");
+var nome = PropertiesService.getScriptProperties().getProperty("LAST_PROPOSTA_NOME");
+
+if (!html) return null;
+return { html: html, nomeArquivo: nome };
+}
+
+// HAPVIDA DUTY SAUDE — PROPOSTA PJ
+// Cole este arquivo na planilha Simulador PJ: Extensoes > Apps Script
+
+function gerarPropostaPJ() {
+var ss = SpreadsheetApp.getActiveSpreadsheet();
+var ws = ss.getSheetByName("Simulador PJ SS") || ss.getSheetByName("Simulador PJ");
+if (!ws) { SpreadsheetApp.getUi().alert('Aba Simulador PJ nao encontrada.'); return; }
+var LOGO_HAP = "[[BASE64_LOGO_STRIPPED]]";
+var LOGO_DS = "[[BASE64_LOGO_STRIPPED]]";
+var WPP = "[[BASE64_LOGO_STRIPPED]]";
+var VER = "[[BASE64_LOGO_STRIPPED]]";
+// ── Lê dados ────────────────────────────────────────────────────
+var razao = String(ws.getRange("A6").getValue() || "—");
+var cnpj = String(ws.getRange("E6").getValue() || "—");
+var cons = String(ws.getRange("A10").getValue() || "—");
+var tel = String(ws.getRange("D10").getValue() || "—");
+var porte = String(ws.getRange("A14").getValue() || "—");
+var copart = String(ws.getRange("C14").getValue() || "—");
+var acomod = String(ws.getRange("E14").getValue() || "—");
+var promo15 = String(ws.getRange("G15").getValue() || "Não Ativa");
+var odonto = String(ws.getRange("G16").getValue() || "Não Ativa");
+
+// ── Data/hora ────────────────────────────────────────────────────
+var now = new Date();
+var tz = Session.getScriptTimeZone();
+var dtHj = Utilities.formatDate(now, tz, "dd/MM/yyyy");
+var hora = Utilities.formatDate(now, tz, "HH:mm");
+
+// ── Validade ─────────────────────────────────────────────────────
+var v7 = new Date(now.getTime() + 7*24*60*60*1000);
+var mDif = v7.getMonth() !== now.getMonth();
+var dFinal = mDif ? new Date(now.getFullYear(), now.getMonth()+1, 0).getDate() : v7.getDate();
+var dtVal = Utilities.formatDate(new Date(now.getFullYear(), now.getMonth(), dFinal), tz, "dd/MM/yyyy");
+var txtVal = mDif
+? "Valida ate <b>" + dtVal + "</b> (limitada ao ultimo dia do mes)."
+: "Valida ate <b>" + dtVal + "</b> (7 dias corridos).";
+
+// ── Faixas ───────────────────────────────────────────────────────
+var FAIXAS = ["00 a 18","19 a 23","24 a 28","29 a 33","34 a 38",
+"39 a 43","44 a 48","49 a 53","54 a 58","59 ou mais"];
+var linhas = [], totV = 0, totM = 0;
+for (var i = 0; i < 10; i++) {
+var q = Number(ws.getRange(20+i,2).getValue())||0;
+var m = Number(ws.getRange(20+i,3).getValue())||0;
+if (q > 0) { linhas.push({f:FAIXAS[i],q:q,m:m,s:q*m}); totV+=q; totM+=q*m; }
+}
+
+// ── Cálculos ─────────────────────────────────────────────────────
+var txAd = totV * 20;
+var odo = odonto === "Ativa" ? totV * 23.25 : 0;
+var base = totM + odo;
+var liq = promo15 === "Ativa" ? base * 0.85 : base;
+var rec = liq;
+var m4 = promo15 === "Ativa" ? base : null;
+var tot1 = liq + txAd;
+
+function fmt(v) {
+var n = Number(v).toFixed(2).split(".");
+return "R$ " + n[0].replace(/\B(?=(\d{3})+(?!\d))/g,".") + "," + n[1];
+}
+
+// ── Benefícios ───────────────────────────────────────────────────
+var bTitle = acomod==="S/ACOM (Ambulatorial)" ? "PLANO AMBULATORIAL"
+: acomod==="Enfermaria" ? "PLANO ENFERMARIA COMPLETO" : "PLANO APARTAMENTO COMPLETO";
+var bItems = acomod==="S/ACOM (Ambulatorial)"
+? [["&#128309;","Urgencia"],["&#128992;","Emergencia"],["&#128993;","Consultas"],
+["&#128309;","Exames Simples"],["&#128992;","Exames Complexos"],["&#128993;","Terapias"],
+["&#128309;","Odontologia Urgente"]]
+: [["&#128309;","Urgencia"],["&#128992;","Emergencia"],["&#128993;","Consultas"],
+["&#128309;","Exames Simples"],["&#128992;","Exames Complexos"],["&#128993;","Terapias"],
+["&#128309;","Odontologia"],["&#128992;","Internacao"],["&#128993;","Cirurgias"],["&#128309;","Obstetricia"]];
+
+var A="#1030A0",A2="#1535AA",CA="#1840C8",AM="#F0C020",LA="#F08000",BR="#FFFFFF",VE="#C01010",ES="#0A1F70";
+
+// ── Tabela de vidas ──────────────────────────────────────────────
+var tVidas="<tr bgcolor='"+CA+"'>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";padding:8px 12px;color:"+AM+";font-weight:800;font-size:11px'>FAIXA ETARIA</td>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";padding:8px 12px;color:"+AM+";font-weight:800;font-size:11px;text-align:center'>QTDE</td>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";padding:8px 12px;color:"+AM+";font-weight:800;font-size:11px;text-align:right'>MENSALIDADE/VIDA</td>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";padding:8px 12px;color:"+AM+";font-weight:800;font-size:11px;text-align:right'>SUBTOTAL</td>"
++"</tr>";
+for (var k=0;k<linhas.length;k++) {
+var rr=linhas[k], bg=k%2===0?A2:CA;
+tVidas+="<tr>"
++"<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+BR+";font-size:13px'>"+rr.f+" anos</td>"
++"<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+AM+";font-weight:700;font-size:14px;text-align:center'>"+rr.q+"</td>"
++"<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+BR+";font-size:13px;text-align:right'>"+fmt(rr.m)+"</td>"
++"<td bgcolor='"+bg+"' style='background:"+bg+";padding:8px 12px;color:"+AM+";font-weight:700;font-size:14px;text-align:right'>"+fmt(rr.s)+"</td>"
++"</tr>";
+}
+tVidas+="<tr bgcolor='"+LA+"'>"
++"<td colspan='2' bgcolor='"+LA+"' style='background:"+LA+";padding:10px 12px;color:"+BR+";font-weight:900;font-size:14px'>TOTAL — "+totV+" vida"+(totV>1?"s":"")+"</td>"
++"<td bgcolor='"+LA+"' style='background:"+LA+"'></td>"
++"<td bgcolor='"+LA+"' style='background:"+LA+";padding:10px 12px;color:"+BR+";font-weight:900;font-size:14px;text-align:right'>"+fmt(totM)+"</td>"
++"</tr>";
+
+// ── Benefícios chips ─────────────────────────────────────────────
+var chips="<table width='100%' cellpadding='0' cellspacing='4'>";
+for (var b=0;b<bItems.length;b+=2){
+chips+="<tr><td bgcolor='"+CA+"' style='background:"+CA+";padding:7px 10px;width:50%'>"
++"<span style='font-size:15px;vertical-align:middle;margin-right:6px'>"+bItems[b][0]+"</span>"
++"<span style='font-size:13px;font-weight:700;color:"+BR+"'>"+bItems[b][1]+"</span></td>";
+if(b+1<bItems.length){
+chips+="<td bgcolor='"+CA+"' style='background:"+CA+";padding:7px 10px;width:50%'>"
++"<span style='font-size:15px;vertical-align:middle;margin-right:6px'>"+bItems[b+1][0]+"</span>"
++"<span style='font-size:13px;font-weight:700;color:"+BR+"'>"+bItems[b+1][1]+"</span></td>";
+} else { chips+="<td bgcolor='"+CA+"' style='background:"+CA+"'></td>"; }
+chips+="</tr>";
+}
+chips+="</table>";
+
+// ── Coparticipação ───────────────────────────────────────────────
+var isP=copart.indexOf("Parcial")>=0;
+var cpD=[
+["Consultas Eletivas","—","—","—","Valor fixo R$ 25,42"],
+["Consultas de Urgencia","—","—","—","Valor fixo R$ 43,63"],
+["Exames Simples","—","—","40,00%","Limitado a R$ 45,79"],
+["Exames Complexos","—","—","40,00%","Limitado a R$ 114,48"],
+["Terapias Especiais","—","Valor fixo R$ 78,87","—","Valor fixo R$ 78,87"],
+["Demais Terapias","—","Valor fixo R$ 24,27","—","Valor fixo R$ 24,27"]
+];
+var cpR="<tr bgcolor='"+CA+"'>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";padding:8px 12px;color:"+AM+";font-weight:800;font-size:11px'>PROCEDIMENTO</td>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";padding:8px 12px;color:"+AM+";font-weight:800;font-size:11px;text-align:center'>VALOR</td>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";padding:8px 12px;color:"+AM+";font-weight:800;font-size:11px;text-align:center'>VALOR MAXIMO</td>"
++"</tr>";
+for(var ci=0;ci<cpD.length;ci++){
+var cd=cpD[ci],v1=isP?cd[1]:cd[3],v2=isP?cd[2]:cd[4],bgc=ci%2===0?A2:CA;
+cpR+="<tr>"
++"<td bgcolor='"+bgc+"' style='background:"+bgc+";padding:8px 12px;color:"+BR+";font-size:12px'>"+cd[0]+"</td>"
++"<td bgcolor='"+bgc+"' style='background:"+bgc+";padding:8px 12px;color:"+(v1==="—"?"rgba(255,255,255,0.3)":AM)+";font-weight:"+(v1==="—"?"normal":"700")+";font-size:12px;text-align:center'>"+v1+"</td>"
++"<td bgcolor='"+bgc+"' style='background:"+bgc+";padding:8px 12px;color:"+(v2==="—"?"rgba(255,255,255,0.3)":AM)+";font-weight:"+(v2==="—"?"normal":"700")+";font-size:12px;text-align:center'>"+v2+"</td>"
++"</tr>";
+}
+
+function mRow(lbl,val,bg,cor) {
+return "<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:8px;border-radius:10px;overflow:hidden'><tr>"
++"<td bgcolor='"+bg+"' style='background:"+bg+";padding:12px 16px;color:"+BR+";font-weight:700;font-size:13px'>"+lbl+"</td>"
++"<td bgcolor='"+bg+"' style='background:"+bg+";padding:12px 16px;color:"+cor+";font-weight:900;font-size:24px;text-align:right;white-space:nowrap'>"+val+"</td>"
++"</tr></table>";
+}
+
+// ── HTML ─────────────────────────────────────────────────────────
+var html="<!DOCTYPE html><html><head><meta charset='UTF-8'>"
++"<style>@page{size:A4 portrait;margin:0;background:#1030A0;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
++"html,body{background:#1030A0 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;margin:0;padding:0;font-family:Arial,sans-serif}"
++"*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}</style></head>"
++"<body bgcolor='#1030A0' style='background:#1030A0 !important'>"
++"<table width='100%' cellpadding='0' cellspacing='0' bgcolor='#1030A0' style='background:#1030A0 !important'>"
++"<tr><td bgcolor='#1030A0' style='background:#1030A0 !important;padding:24px 28px'>"
+
+// CABEÇALHO
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:18px;border-bottom:2px solid rgba(255,255,255,0.15);padding-bottom:14px'><tr>"
++"<td bgcolor='"+A+"' style='background:"+A+"'><img src='"+LOGO_HAP+"' height='55' style='display:block'></td>"
++"<td bgcolor='"+A+"' style='background:"+A+";text-align:right;vertical-align:top'>"
++"<span style='font-size:10px;color:rgba(255,255,255,0.5)'>Proposta gerada em</span><br>"
++"<span style='font-size:15px;font-weight:700;color:"+BR+"'>"+dtHj+" as "+hora+"</span>"
++"</td></tr></table>"
+
+// TÍTULO
++"<div style='font-size:26px;font-weight:900;color:"+BR+";line-height:1.2;margin-bottom:8px'>Proposta Empresarial<br>Plano de Saude PJ</div>"
++"<div style='display:inline-block;background:"+LA+";color:"+BR+";border-radius:20px;padding:4px 14px;font-size:12px;font-weight:800;margin-bottom:14px'>"+porte+"</div>"
++"<div style='height:4px;width:45px;background:"+LA+";border-radius:2px;margin-bottom:18px'></div>"
+
+// EMPRESA + CONSULTOR
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px'><tr>"
++"<td width='49%' bgcolor='"+CA+"' style='background:"+CA+";border-radius:10px;padding:14px 16px;vertical-align:top'>"
++"<div style='font-size:11px;font-weight:800;color:"+AM+";letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:6px;margin-bottom:10px'>&#127970; EMPRESA</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>RAZAO SOCIAL</div>"
++"<div style='font-size:13px;font-weight:700;color:"+BR+";margin-bottom:10px'>"+razao+"</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>CNPJ</div>"
++"<div style='font-size:13px;font-weight:700;color:"+BR+"'>"+cnpj+"</div>"
++"</td><td width='2%'></td>"
++"<td width='49%' bgcolor='"+CA+"' style='background:"+CA+";border-radius:10px;padding:14px 16px;vertical-align:top'>"
++"<div style='font-size:11px;font-weight:800;color:"+AM+";letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:6px;margin-bottom:10px'>&#128100; CONSULTOR</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>NOME</div>"
++"<div style='font-size:13px;font-weight:700;color:"+BR+";margin-bottom:10px'>"+cons+"</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px'>TELEFONE</div>"
++"<div style='font-size:13px;font-weight:700;color:"+BR+"'>"+tel+"</div>"
++"</td></tr></table>"
+
+// DETALHES
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+CA+"' style='background:"+CA+";padding:10px 16px;color:"+AM+";font-weight:800;font-size:11px;letter-spacing:1px'>&#9881; DETALHES DO PLANO</td></tr>"
++"<tr><td bgcolor='"+CA+"' style='background:"+CA+";padding:12px 16px 16px'>"
++"<table width='100%' cellpadding='0' cellspacing='0'><tr>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";width:33%;vertical-align:top'><div style='font-size:10px;color:rgba(255,255,255,0.5)'>COPARTICIPACAO</div><div style='font-size:13px;font-weight:700;color:"+BR+"'>"+copart+"</div></td>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";width:33%;vertical-align:top'><div style='font-size:10px;color:rgba(255,255,255,0.5)'>ACOMODACAO</div><div style='font-size:13px;font-weight:700;color:"+BR+"'>"+acomod+"</div></td>"
++"<td bgcolor='"+CA+"' style='background:"+CA+";width:33%;vertical-align:top'><div style='font-size:10px;color:rgba(255,255,255,0.5)'>ODONTO</div><div style='font-size:13px;font-weight:700;color:"+BR+"'>"+(odonto==="Ativa"?"Incluído — R$ 23,25/vida":"Não incluído")+"</div></td>"
++"</tr></table>"
++(promo15==="Ativa"?"<div style='margin-top:8px'><span style='background:#C01010;color:"+BR+";border-radius:16px;padding:4px 12px;font-size:11px;font-weight:700'>&#127991; PROMOCAO 15% ATIVA</span></div>":"")
++"</td></tr></table>"
+
+// BENEFÍCIOS
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+CA+"' style='background:"+CA+";padding:10px 16px;color:"+AM+";font-weight:800;font-size:11px;letter-spacing:1px'>&#9989; "+bTitle+" — COM DIREITO A:</td></tr>"
++"<tr><td bgcolor='"+CA+"' style='background:"+CA+";padding:10px 16px 14px'>"+chips+"</td></tr></table>"
+
+// VIDAS
++"<div style='font-size:20px;font-weight:900;color:"+BR+";margin-bottom:5px'>Distribuicao de Vidas</div>"
++"<div style='height:3px;width:40px;background:"+LA+";border-radius:2px;margin-bottom:10px'></div>"
++"<table width='100%' cellpadding='0' cellspacing='2' style='margin-bottom:12px'>"+tVidas+"</table>"
+
+// DESCONTO
++(promo15==="Ativa"
+?"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+VE+"' style='background:"+VE+";padding:10px 16px;color:"+BR+";font-weight:900;font-size:13px'>&#127991; PROMOCAO ATIVA</td></tr>"
++"<tr><td bgcolor='#9B0000' style='background:#9B0000;padding:10px 16px 14px;color:"+BR+";font-size:13px'>"
++"<b>15% de desconto</b> nas 3 primeiras mensalidades (sobre plano"+(odo>0?" + odonto":"")+").</td></tr></table>"
+:"")
+
+// RESUMO FINANCEIRO
++"<div style='font-size:20px;font-weight:900;color:"+BR+";margin-bottom:5px;margin-top:4px'>Resumo Financeiro</div>"
++"<div style='height:3px;width:40px;background:"+LA+";border-radius:2px;margin-bottom:10px'></div>"
++(odo>0 ? mRow("&#129463; Plano Medico",fmt(totM),A2,AM)+mRow("&#129463; Odonto Premium Nacional (R$ 23,25 x "+totV+" vidas)",fmt(odo),A2,AM) : "")
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:8px;border-radius:10px;overflow:hidden'><tr>"
++"<td bgcolor='"+LA+"' style='background:"+LA+";padding:12px 16px 6px;color:"+BR+";font-weight:700;font-size:13px'>&#128176; TOTAL 1&#186; MES</td>"
++"<td bgcolor='"+LA+"' rowspan='2' style='background:"+LA+";padding:12px 16px;color:"+BR+";font-weight:900;font-size:24px;text-align:right;vertical-align:middle;white-space:nowrap'>"+fmt(tot1)+"</td>"
++"</tr><tr>"
++"<td bgcolor='"+LA+"' style='background:"+LA+";padding:0 16px 10px;color:rgba(255,255,255,0.85);font-size:11px'>"
++"&#128179; TX. ADESAO: "+fmt(txAd)+" (R$ 20,00 x "+totV+" vida"+(totV>1?"s":"")+" — cobrada uma unica vez)</td>"
++"</tr></table>"
++mRow(promo15==="Ativa"?"&#128197; 2a e 3a Mensalidade (com 15%)":"&#128197; Mensalidade Recorrente",fmt(rec),A2,AM)
++(m4!==null?mRow("&#128197; A partir do 4&#186; mes (sem desconto)",fmt(m4),A2,AM):"")
+
+// COPART
++"<div style='font-size:20px;font-weight:900;color:"+BR+";margin-bottom:5px;margin-top:4px'>Coparticipacao por Procedimento</div>"
++"<div style='height:3px;width:40px;background:"+LA+";border-radius:2px;margin-bottom:10px'></div>"
++"<table width='100%' cellpadding='0' cellspacing='2' style='margin-bottom:6px'>"+cpR+"</table>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:12px'>Obs: Cobranca por procedimento realizado.</div>"
+
+// VALIDADE
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:8px;overflow:hidden'>"
++"<tr><td bgcolor='"+A2+"' style='background:"+A2+";padding:11px 16px;color:"+BR+";font-size:12px'>&#9203; <b>VALIDADE:</b> "+txtVal+"</td></tr></table>"
+
+// WHATSAPP
++"<table width='100%' cellpadding='0' cellspacing='0' style='margin-bottom:12px;border-radius:10px;overflow:hidden'>"
++"<tr><td bgcolor='"+A2+"' style='background:"+A2+";padding:12px 20px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.15)'>"
++"<img src='"+WPP+"' width='34' height='34' style='vertical-align:middle;margin-right:10px'>"
++"<span style='font-size:22px;font-weight:900;color:"+BR+";letter-spacing:1px;vertical-align:middle'>(85) 3051-3333</span>"
++"<img src='"+VER+"' width='30' height='30' style='vertical-align:middle;margin-left:10px'>"
++"</td></tr>"
++"<tr><td bgcolor='"+A2+"' style='background:"+A2+";padding:12px 20px;text-align:center'>"
++"<img src='"+WPP+"' width='34' height='34' style='vertical-align:middle;margin-right:10px'>"
++"<span style='font-size:22px;font-weight:900;color:"+BR+";letter-spacing:1px;vertical-align:middle'>0800 121 3333</span>"
++"<img src='"+VER+"' width='30' height='30' style='vertical-align:middle;margin-left:10px'>"
++"</td></tr></table>"
+
+// RODAPÉ
++"<table width='100%' cellpadding='0' cellspacing='0' style='border-radius:10px;overflow:hidden;margin-bottom:10px'>"
++"<tr bgcolor='"+ES+"'>"
++"<td bgcolor='"+ES+"' style='background:"+ES+";padding:14px 16px;vertical-align:middle;width:100px'><img src='"+LOGO_DS+"' width='85' style='display:block'></td>"
++"<td bgcolor='"+ES+"' style='background:"+ES+";padding:14px 16px;text-align:center;vertical-align:middle'>"
++"<div style='font-size:12px;font-weight:700;color:"+BR+"'>Hapvida NotreDame Intermedica</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.55);margin-top:3px'>Duty Saude Concessionaria Oficial</div>"
++"<div style='font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px'>Regulamentado pela ANS | Tabela 3T2026 | Vigencia: 01/07/2026 a 30/09/2026</div>"
++"</td></tr></table>"
++"<div style='font-size:9px;color:rgba(255,255,255,0.35);text-align:center'>"
++"Valores Medica 1. TX. Adesao R$ 20,00/vida. Odonto opcional. Desconto 15% nao incide sobre TX. Adesao.</div>"
++"</td></tr></table></body></html>";
+
+// ── Nome do arquivo ──────────────────────────────────────────────
+var cpL = copart.indexOf("Parcial")>=0 ? "CopartParcial" : "CopartTotal";
+var acL = acomod==="S/ACOM (Ambulatorial)"?"SemAcomodacao":acomod==="Enfermaria"?"Enfermaria":"Apartamento";
+var nL = razao.replace(/[^a-zA-Z\u00C0-\u00FF\s]/g,"").trim().replace(/\s+/g,"_").substring(0,30);
+var nArq= "PropostaPJ_"+nL+"_"+cpL+"_"+acL+"_"+dtHj.replace(/\//g,"-")+".pdf";
+
+// ── Salva para PNG ───────────────────────────────────────────────
+try {
+PropertiesService.getScriptProperties().setProperty("LAST_PJ_HTML", html);
+PropertiesService.getScriptProperties().setProperty("LAST_PJ_NOME", nArq);
+} catch(e) {}
+
+// ── Gera PDF ─────────────────────────────────────────────────────
+var pdfBlob = Utilities.newBlob(html,"text/html","pj.html").getAs("application/pdf");
+pdfBlob.setName(nArq);
+var file = DriveApp.createFile(pdfBlob);
+file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+var url = "https://drive.google.com/uc?export=download&id="+file.getId();
+
+var dlHtml = HtmlService.createHtmlOutput(
+"<html><head><style>body{font-family:Arial;text-align:center;padding:36px;background:#1030A0;color:#fff}"
++".btn{display:inline-block;margin-top:16px;padding:12px 26px;background:#F08000;color:#fff;font-size:14px;font-weight:bold;border-radius:10px;text-decoration:none}</style>"
++"<script>window.onload=function(){setTimeout(function(){window.location.href='"+url+"';},800);};</script></head><body>"
++"<p style='font-size:17px;font-weight:bold;color:#F0C020'>Proposta PJ gerada!</p>"
++"<p style='font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px'>"+nArq+"</p>"
++"<p style='font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px'>Download iniciara automaticamente...</p>"
++"<a class='btn' href='"+url+"' target='_blank'>Baixar PDF</a>"
++"</body></html>"
+).setWidth(440).setHeight(220).setTitle("Proposta PJ Gerada");
+SpreadsheetApp.getUi().showModalDialog(dlHtml,"Proposta PJ Gerada");
+}
+
+function gerarPropostaPJImagem() {
+var html = PropertiesService.getScriptProperties().getProperty("LAST_PJ_HTML");
+var nome = PropertiesService.getScriptProperties().getProperty("LAST_PJ_NOME");
+if (!html) { SpreadsheetApp.getUi().alert("Gere o PDF primeiro, depois clique em Gerar como Imagem."); return; }
+var pop = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
++"<script src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'></script>"
++"<style>body{margin:0;padding:0;background:#1030A0;font-family:Arial}"
++".tb{position:fixed;top:0;left:0;right:0;z-index:9999;background:#0A1F70;padding:10px 16px;display:flex;align-items:center;gap:12px}"
++".btn{padding:10px 20px;border-radius:8px;border:none;font-size:13px;font-weight:bold;cursor:pointer;color:#fff;background:#F08000}"
++".st{font-size:12px;color:rgba(255,255,255,0.7)}"
++"#w{margin-top:60px;padding:16px}#c{width:794px;margin:0 auto;background:#1030A0}</style></head><body>"
++"<div class='tb'><button class='btn' onclick='baixar()'>Baixar PNG</button>"
++"<span id='st' class='st'>Clique para baixar como imagem PNG</span></div>"
++"<div id='w'><div id='c'>"+html+"</div></div>"
++"<script>function baixar(){"
++"document.getElementById('st').textContent='Gerando imagem...';"
++"html2canvas(document.getElementById('c'),{scale:2,useCORS:true,backgroundColor:'#1030A0',width:794,windowWidth:794})"
++".then(function(cv){var a=document.createElement('a');"
++"a.download='"+(nome||"PropostaPJ").replace(".pdf",".png")+"';"
++"a.href=cv.toDataURL('image/png',1.0);a.click();"
++"document.getElementById('st').textContent='Download iniciado!';});}"
++"</script></body></html>";
+SpreadsheetApp.getUi().showModalDialog(
+HtmlService.createHtmlOutput(pop).setWidth(860).setHeight(700).setTitle("Proposta PJ — PNG"),
+"Gerar Imagem PNG"
+);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MENU UNIFICADO — aparece nas duas abas
+// ═══════════════════════════════════════════════════════════════════
+function onOpen() {
+SpreadsheetApp.getUi()
+.createMenu("Hapvida Duty Saude")
+.addItem("Gerar Proposta Individual — PDF", "gerarProposta")
+.addSeparator()
+.addItem("Gerar Proposta Individual — Imagem PNG", "gerarPropostaImagem")
+.addSeparator()
+.addItem("Gerar Proposta PJ — PDF", "gerarPropostaPJ")
+.addSeparator()
+.addItem("Gerar Proposta PJ — Imagem PNG", "gerarPropostaPJImagem")
+.addToUi();
+}
+
+function inspecionar() {
+var ss = SpreadsheetApp.getActiveSpreadsheet();
+var sheets = ss.getSheets();
+var out = [];
+for (var i = 0; i < sheets.length; i++) {
+var sh = sheets[i];
+var rng = sh.getDataRange();
+out.push('=== SHEET: ' + sh.getName() + ' rows=' + rng.getNumRows() + ' cols=' + rng.getNumColumns() + ' ===');
+var values = rng.getValues();
+var formulas = rng.getFormulas();
+for (var r = 0; r < values.length; r++) {
+var line = [];
+for (var c = 0; c < values[r].length; c++) {
+var v = formulas[r][c] ? formulas[r][c] : values[r][c];
+if (v !== '' && v !== null) line.push(String.fromCharCode(65+c) + (r+1) + '=' + v);
+}
+
+[output truncated at 50000 of 51312 characters. Pass a larger max_chars (default 50000) to see more, or use read_page with a ref_id to focus on a smaller section.]
+
+Tab Context:
+- Executed on tabId: 216598168
+- Available tabs:
+  • tabId 216598168: "Projeto sem título - Editor do projeto - Apps Script" ("https://script.google.com/u/1/home/projects/1ZhnfC7fGMmKwVCQIIFLTlRVfHS9F5NORFN0-JrKz5MfIokoZxUJXIyEw/edit")
+  • tabId 216598373: "Cloudflare Dashboard | Manage Your Account" ("https://dash.cloudflare.com/500cc18b6b95c62652b40b2ad3756e3d/pages/view/simulador-hapvida")
+  • tabId 216598408: "fd87466b.simulador-hapvida.pages.dev" ("https://fd87466b.simulador-hapvida.pages.dev/")
+  • tabId 216598411: "CRM - Duty Saude" ("https://crm.dutysaude.com.br/#")
