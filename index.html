@@ -60,8 +60,18 @@ Para baixar/imprimir, abra o simulador numa aba separada:
 <input type="text" id="nomeCliente" placeholder="Opcional">
 </div>
 <div class="field">
+<label id="labelDocumento">CPF</label>
+<input type="text" id="documentoCliente" placeholder="Opcional">
+</div>
+</div>
+<div class="row">
+<div class="field">
 <label>Consultor</label>
 <input type="text" id="nomeConsultor" placeholder="Opcional">
+</div>
+<div class="field">
+<label>Telefone do consultor</label>
+<input type="text" id="telefoneConsultor" placeholder="Opcional">
 </div>
 </div>
 
@@ -139,6 +149,8 @@ document.getElementById('tabPJ').className = 'tab-btn' + (t === 'pj' ? ' active'
 document.getElementById('rowPorte').style.display = (t === 'pj') ? 'flex' : 'none';
 document.getElementById('rowOdonto').style.display = (t === 'pj') ? 'flex' : 'none';
 document.getElementById('resultado').style.display = 'none';
+document.getElementById('labelDocumento').textContent = (t === 'pj') ? 'CNPJ' : 'CPF';
+document.getElementById('documentoCliente').placeholder = (t === 'pj') ? 'Opcional (CNPJ)' : 'Opcional (CPF)';
 }
 
 function montarFaixas(lista) {
@@ -190,7 +202,9 @@ acomodacao: document.getElementById('acomodacao').value,
 promo: document.getElementById('promo').checked,
 vidas: vidas,
 nomeCliente: document.getElementById('nomeCliente').value,
-nomeConsultor: document.getElementById('nomeConsultor').value
+documentoCliente: document.getElementById('documentoCliente').value,
+nomeConsultor: document.getElementById('nomeConsultor').value,
+telefoneConsultor: document.getElementById('telefoneConsultor').value
 };
 
 var onOk = function(res) {
