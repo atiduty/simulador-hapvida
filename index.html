@@ -240,9 +240,6 @@ return URL.createObjectURL(blob);
 
 function gerarPDF() {
 if (!ULTIMO_INPUT) return;
-// Dentro de iframes com sandbox restrito (ex.: dashlet do CRM sem allow-popups),
-// window.open() é bloqueado e retorna null/undefined ou lança erro. Nesse caso,
-// navegamos a própria janela/iframe para o PDF em vez de abrir uma nova aba.
 var novaJanela = null;
 var podeAbrirNovaAba = true;
 try {
@@ -284,8 +281,6 @@ novaJanela.location.href = blobUrl;
 return;
 } catch (eNav) { /* cai no fallback abaixo */ }
 }
-// Fallback: sem permissão para abrir nova aba/janela (sandbox do iframe) —
-// navega a própria página atual para o PDF.
 window.location.href = blobUrl;
 })
 .catch(function(err) {
@@ -323,6 +318,7 @@ if (res.desconto15) html += linha('Desconto 15% (promoção)', res.desconto15, t
 html += linha('Valor líquido (plano' + (res.odonto ? ' + odonto' : '') + ')', res.liquido);
 html += linha('Taxa de adesão (R$20/vida, única)', res.adesao);
 html += linha('Total 1º mês', res.total1Mes, false, true);
+html += linha('Mensalidade recorrente (2º/3º mês)', res.liquido);
 if (res.apartir4Mes !== null) html += linha('A partir do 4º mês', res.apartir4Mes);
 }
 document.getElementById('resumoTotais').innerHTML = html;
@@ -340,7 +336,6 @@ if (window.self !== window.top) {
 document.getElementById('avisoNovaAba').style.display = 'block';
 }
 } catch (eFrame) {
-// Acesso a window.top bloqueado (cross-origin) também indica que estamos embutidos.
 document.getElementById('avisoNovaAba').style.display = 'block';
 }
 
