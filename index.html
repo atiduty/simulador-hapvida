@@ -144,12 +144,32 @@ Para baixar/imprimir, abra o simulador numa aba separada:
 <div class="card" id="cardNacional" style="display:none">
 <div class="row">
 <div class="field">
+<label>Nome do cliente / raz&atilde;o social</label>
+<input type="text" id="nomeClienteNacional" placeholder="Opcional">
+</div>
+<div class="field">
+<label id="labelDocumentoNacional">CPF</label>
+<input type="text" id="documentoClienteNacional" placeholder="Opcional">
+</div>
+</div>
+<div class="row">
+<div class="field">
+<label>Consultor</label>
+<input type="text" id="nomeConsultorNacional" placeholder="Opcional">
+</div>
+<div class="field">
+<label>Telefone do consultor</label>
+<input type="text" id="telefoneConsultorNacional" placeholder="Opcional">
+</div>
+</div>
+<div class="row">
+<div class="field">
 <label>Cidade / UF</label>
 <select id="cidadeNacional"></select>
 </div>
 <div class="field">
 <label>Modalidade</label>
-<select id="tipoNacional">
+<select id="tipoNacional" onchange="atualizarLabelDocNacional()">
 <option value="pj">PJ &middot; Super Simples (2 a 29 vidas)</option>
 <option value="individual">Individual / Familiar</option>
 </select>
@@ -191,6 +211,7 @@ Para baixar/imprimir, abra o simulador numa aba separada:
 <tbody id="resultLinhasNacional"></tbody>
 </table>
 <div id="resumoTotaisNacional" style="margin-top:10px"></div>
+<button class="btn-primary" id="btnPDFNacional" style="margin-top:10px;background:#F08000" onclick="gerarPDFNacional()">📄 Gerar PDF da Proposta</button>
 </div>
 <!-- ===== FIM ABA NACIONAL ===== -->
 
@@ -200,6 +221,7 @@ var FAIXAS_NACIONAL = [];
 var TIPO = 'individual';
 var ULTIMO_INPUT = null;
 var ULTIMO_TIPO = null;
+var ULTIMO_INPUT_NACIONAL = null;
 var EXEC_URL = 'https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec';
 var CIDADES_NACIONAL_CARREGADAS = false;
 
@@ -232,6 +254,12 @@ document.getElementById('rowPorte').style.display = (t === 'pj') ? 'flex' : 'non
 document.getElementById('rowOdonto').style.display = (t === 'pj') ? 'flex' : 'none';
 document.getElementById('labelDocumento').textContent = (t === 'pj') ? 'CNPJ' : 'CPF';
 document.getElementById('documentoCliente').placeholder = (t === 'pj') ? 'Opcional (CNPJ)' : 'Opcional (CPF)';
+}
+
+function atualizarLabelDocNacional() {
+var tipoNac = document.getElementById('tipoNacional').value;
+document.getElementById('labelDocumentoNacional').textContent = (tipoNac === 'pj') ? 'CNPJ' : 'CPF';
+document.getElementById('documentoClienteNacional').placeholder = (tipoNac === 'pj') ? 'Opcional (CNPJ)' : 'Opcional (CPF)';
 }
 
 function montarFaixas(lista) {
@@ -380,8 +408,14 @@ cidade: cidade,
 tipo: document.getElementById('tipoNacional').value,
 coparticipacao: document.getElementById('coparticipacaoNacional').value,
 acomodacao: document.getElementById('acomodacaoNacional').value,
-vidas: vidas
+vidas: vidas,
+nomeCliente: document.getElementById('nomeClienteNacional').value,
+documentoCliente: document.getElementById('documentoClienteNacional').value,
+nomeConsultor: document.getElementById('nomeConsultorNacional').value,
+telefoneConsultor: document.getElementById('telefoneConsultorNacional').value
 };
+
+ULTIMO_INPUT_NACIONAL = input;
 
 fetch(EXEC_URL + '?action=simularNacional&input=' + encodeURIComponent(JSON.stringify(input)), {credentials: 'omit'})
 .then(function(r){ return r.json(); })
@@ -495,6 +529,54 @@ btn.disabled = true;
 btn.textContent = 'Gerando PDF e JPG...';
 mostrarErro('');
 fetch(EXEC_URL + '?action=gerarPropostaPDF&tipo=' + ULTIMO_TIPO + '&input=' + encodeURIComponent(JSON.stringify(ULTIMO_INPUT)), {credentials: 'omit'})
+.then(function(r){ return r.json(); })
+.then(function(res) {
+if (res && res.error) {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+mostrarErro('Erro ao gerar PDF: ' + res.error);
+return;
+}
+var nomeBase = String(res.nomeArquivo || 'proposta.pdf').replace(/\.pdf$/i, '');
+var byteArray;
+try {
+byteArray = base64ParaUint8Array(res.pdfBase64);
+} catch (eBlob) {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+mostrarErro('Erro ao montar o PDF: ' + (eBlob && eBlob.message ? eBlob.message : eBlob));
+return;
+}
+try {
+baixarArquivo(nomeBase + '.pdf', new Blob([byteArray], {type: 'application/pdf'}));
+} catch (eDownload) {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+mostrarErro('Não foi possível iniciar o download (bloqueado pelo navegador/painel). Se estiver dentro do CRM, abra o simulador numa aba separada.');
+return;
+}
+gerarJpgDoHtml(res.html, nomeBase + '.jpg').catch(function(eJpg) {
+mostrarErro('PDF baixado, mas houve um erro ao gerar o JPG: ' + (eJpg && eJpg.message ? eJpg.message : eJpg));
+}).then(function() {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+});
+})
+.catch(function(err) {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+mostrarErro('Erro ao gerar PDF: ' + (err && err.message ? err.message : err));
+});
+}
+
+function gerarPDFNacional() {
+if (!ULTIMO_INPUT_NACIONAL) return;
+var btn = document.getElementById('btnPDFNacional');
+var textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = 'Gerando PDF e JPG...';
+mostrarErro('');
+fetch(EXEC_URL + '?action=gerarPropostaPDFNacional&input=' + encodeURIComponent(JSON.stringify(ULTIMO_INPUT_NACIONAL)), {credentials: 'omit'})
 .then(function(r){ return r.json(); })
 .then(function(res) {
 if (res && res.error) {
