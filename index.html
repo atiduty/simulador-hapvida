@@ -450,7 +450,10 @@ tr.innerHTML = '<td>' + l.faixa + '</td><td class="num">' + l.qtd + '</td><td cl
 body.appendChild(tr);
 });
 var html = '';
-html += linha('Total (' + res.totalVidas + ' vida' + (res.totalVidas > 1 ? 's' : '') + ') &middot; ' + res.cidade, res.totalGeral, false, true);
+html += linha('Mensalidade (' + res.totalVidas + ' vida' + (res.totalVidas > 1 ? 's' : '') + ') &middot; ' + res.cidade, res.totalGeral);
+html += linha('Taxa de adesão (única)', res.adesao);
+html += linha('Total 1º mês', res.total1Mes, false, true);
+html += linha('Mensalidade recorrente (2º mês em diante)', res.totalGeral);
 if (faltouPreco) {
 html += '<div class="note" style="color:#b00020">⚠️ Alguns valores para esta combinação ainda não estão disponíveis para esta cidade.</div>';
 }
