@@ -223,6 +223,27 @@ var ULTIMO_INPUT = null;
 var ULTIMO_TIPO = null;
 var ULTIMO_INPUT_NACIONAL = null;
 var EXEC_URL = 'https://script.google.com/macros/s/AKfycbylkryc1KZQsFmZgBJ_RHeDvczRhT9ntOQrQ8AFRCUoYg36x7Ldma50Gn4hvfMGqrOC/exec';
+
+/* RETRY: Apps Script as vezes devolve HTML (erro transitorio/sobrecarga); repete automaticamente */
+var _origFetch = window.fetch.bind(window);
+window.fetch = function(url, opts) {
+if (typeof url !== 'string' || url.indexOf(EXEC_URL) !== 0) { return _origFetch(url, opts); }
+function esperar(n) { return new Promise(function(res) { setTimeout(res, 1000 * (n + 1)); }); }
+function tentar(n) {
+return _origFetch(url, opts).then(function(r) {
+return r.text().then(function(t) {
+var ruim = t.replace(/^\s+/, '').charAt(0) === '<' || r.status >= 500;
+if (ruim && n < 4) { return esperar(n).then(function() { return tentar(n + 1); }); }
+return new Response(t, {status: r.status, headers: {'Content-Type': 'application/json'}});
+});
+}, function(err) {
+if (n < 4) { return esperar(n).then(function() { return tentar(n + 1); }); }
+throw err;
+});
+}
+return tentar(0);
+};
+
 var CIDADES_NACIONAL_CARREGADAS = false;
 
 function setTipo(t) {
@@ -671,7 +692,7 @@ document.getElementById('avisoNovaAba').style.display = 'block';
 fetch(EXEC_URL + '?action=getFaixas', {credentials: 'omit'}).then(function(r){return r.json();}).then(function(f) {
 montarFaixas(f.individual);
 }).catch(function(err) {
-mostrarErro('Erro ao carregar tabela de precos: ' + (err && err.message ? err.message : err));
+mostrarErro('Não foi possível carregar a tabela de preços agora (servidor ocupado). Recarregue a página em alguns segundos.');
 });
 </script>
 </body>
