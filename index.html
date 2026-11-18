@@ -40,6 +40,7 @@ td.num, th.num { text-align: right; }
 .subtab-btn.active { background: #0b3d91; color: #fff; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -56,6 +57,7 @@ Para baixar/imprimir, abra o simulador numa aba separada:
 <div class="tab-btn active" id="tabIndividual" onclick="setTipo('individual')">Individual</div>
 <div class="tab-btn" id="tabPJ" onclick="setTipo('pj')">Empresarial (PJ)</div>
 <div class="tab-btn" id="tabNacional" onclick="setTipo('nacional')">🌎 Nacional</div>
+<div class="tab-btn" id="tabUmaVida" onclick="setTipo('umavida')">🧍 1 Vida</div>
 </div>
 
 <div class="card" id="cardPadrao">
@@ -215,6 +217,66 @@ Para baixar/imprimir, abra o simulador numa aba separada:
 </div>
 <!-- ===== FIM ABA NACIONAL ===== -->
 
+<!-- ===== ABA 1 VIDA (Super Simples - Fortaleza, CE) ===== -->
+<div class="card" id="cardUmaVida" style="display:none">
+<div class="note" style="margin:0 0 10px 0;font-size:12px;color:#0b3d91"><b>Tabela promocional Super Simples &middot; 1 vida &middot; Fortaleza, CE</b><br>Para contratos assinados de 23/11/2026 a 31/12/2026.</div>
+<div class="row">
+<div class="field">
+<label>Nome do cliente / raz&atilde;o social</label>
+<input type="text" id="nomeClienteUV" placeholder="Opcional">
+</div>
+<div class="field">
+<label>CNPJ</label>
+<input type="text" id="documentoClienteUV" placeholder="Opcional (CNPJ)">
+</div>
+</div>
+<div class="row">
+<div class="field">
+<label>Consultor</label>
+<input type="text" id="nomeConsultorUV" placeholder="Opcional">
+</div>
+<div class="field">
+<label>Telefone do consultor</label>
+<input type="text" id="telefoneConsultorUV" placeholder="Opcional">
+</div>
+</div>
+<div class="row">
+<div class="field">
+<label>Coparticipa&ccedil;&atilde;o</label>
+<select id="coparticipacaoUV">
+<option value="Parcial">Coparticipa&ccedil;&atilde;o Parcial</option>
+<option value="Com">Coparticipa&ccedil;&atilde;o Total</option>
+</select>
+</div>
+<div class="field">
+<label>Acomoda&ccedil;&atilde;o</label>
+<select id="acomodacaoUV">
+<option value="Enfermaria">Enfermaria</option>
+<option value="Apartamento">Apartamento</option>
+<option value="Ambulatorial">S/ACOM (Ambulatorial)</option>
+</select>
+</div>
+</div>
+<div class="row">
+<div class="field">
+<label>Faixa et&aacute;ria da vida</label>
+<select id="faixaUV"></select>
+</div>
+<div class="field toggle">
+<input type="checkbox" id="odontoUV">
+<label style="margin:0">🦷 Odonto opcional (+R$ 23,25)</label>
+</div>
+</div>
+<div class="err" id="erroBoxUV"></div>
+<button class="btn-primary" onclick="calcularUmaVida()">Calcular simula&ccedil;&atilde;o 1 vida</button>
+</div>
+
+<div class="card" id="resultadoUV" style="display:none">
+<div id="resumoUV"></div>
+<button class="btn-primary" id="btnPDFUV" style="margin-top:10px;background:#F08000" onclick="gerarPDFUmaVida()">📄 Gerar PDF da Proposta</button>
+</div>
+<!-- ===== FIM ABA 1 VIDA ===== -->
+
 <script>
 var FAIXAS = [];
 var FAIXAS_NACIONAL = [];
@@ -252,10 +314,16 @@ document.getElementById('tabIndividual').className = 'tab-btn' + (t === 'individ
 document.getElementById('tabPJ').className = 'tab-btn' + (t === 'pj' ? ' active' : '');
 document.getElementById('tabNacional').className = 'tab-btn' + (t === 'nacional' ? ' active' : '');
 
+document.getElementById('tabUmaVida').className = 'tab-btn' + (t === 'umavida' ? ' active' : '');
+var ehUma = (t === 'umavida');
+document.getElementById('cardUmaVida').style.display = ehUma ? 'block' : 'none';
+document.getElementById('resultadoUV').style.display = 'none';
+if (ehUma) { montarFaixaUV(); }
+
 var ehNacional = (t === 'nacional');
-document.getElementById('cardPadrao').style.display = ehNacional ? 'none' : 'block';
-document.getElementById('cardPadraoFaixas').style.display = ehNacional ? 'none' : 'block';
-document.getElementById('btnCalcular').style.display = ehNacional ? 'none' : 'block';
+document.getElementById('cardPadrao').style.display = (ehNacional || ehUma) ? 'none' : 'block';
+document.getElementById('cardPadraoFaixas').style.display = (ehNacional || ehUma) ? 'none' : 'block';
+document.getElementById('btnCalcular').style.display = (ehNacional || ehUma) ? 'none' : 'block';
 document.getElementById('resultado').style.display = 'none';
 
 document.getElementById('cardNacional').style.display = ehNacional ? 'block' : 'none';
@@ -674,6 +742,177 @@ if (res.apartir4Mes !== null) html += linha('A partir do 4º mês', res.apartir4
 document.getElementById('resumoTotais').innerHTML = html;
 document.getElementById('resultado').style.display = 'block';
 document.getElementById('resultado').scrollIntoView({behavior: 'smooth'});
+}
+
+/* ===== 1 VIDA - SUPER SIMPLES - FORTALEZA, CE (tabela promocional 23/11/2026 a 31/12/2026) ===== */
+var UV_FAIXAS = ['00 a 18 anos','19 a 23 anos','24 a 28 anos','29 a 33 anos','34 a 38 anos','39 a 43 anos','44 a 48 anos','49 a 53 anos','54 a 58 anos','59 anos ou mais'];
+var UV_PRECOS = {
+Parcial: {
+Ambulatorial: [174.96,195.96,219.48,252.40,290.26,345.41,431.76,539.70,917.49,1027.59],
+Enfermaria:   [224.44,251.37,281.53,323.76,372.32,443.06,553.83,692.29,1176.89,1318.12],
+Apartamento:  [269.02,301.30,337.46,388.08,446.29,531.09,663.86,829.83,1410.71,1580.00]
+},
+Com: {
+Ambulatorial: [129.08,144.57,161.92,186.21,214.14,254.83,318.54,398.18,676.91,758.14],
+Enfermaria:   [175.33,196.37,219.93,252.92,290.86,346.12,432.65,540.81,919.38,1029.71],
+Apartamento:  [210.09,235.30,263.54,303.07,348.53,414.75,518.44,648.05,1101.69,1233.89]
+}
+};
+var UV_ADESAO = 20.00;
+var UV_ODONTO = 23.25;
+var UV_VIGENCIA_INI = '2026-11-23';
+var UV_VIGENCIA_FIM = '2026-12-31';
+var UV_COPART = [
+['Consultas eletivas', 'Valor fixo R$ 25,42'],
+['Consultas de urgência', 'Valor fixo R$ 43,63'],
+['Exames simples', '40% (limitado a R$ 45,79)'],
+['Exames complexos', '40% (limitado a R$ 114,48)'],
+['Terapias Neurológicas Especiais', 'Valor fixo R$ 78,87'],
+['Demais terapias', 'Valor fixo R$ 24,27']
+];
+var ULTIMO_UV = null;
+
+function montarFaixaUV() {
+var sel = document.getElementById('faixaUV');
+if (sel.options.length) return;
+UV_FAIXAS.forEach(function(f, i) {
+var o = document.createElement('option');
+o.value = i;
+o.textContent = f;
+sel.appendChild(o);
+});
+}
+
+function erroUV(msg) {
+var box = document.getElementById('erroBoxUV');
+box.textContent = msg;
+box.style.display = msg ? 'block' : 'none';
+}
+
+function calcularUmaVida() {
+erroUV('');
+var cop = document.getElementById('coparticipacaoUV').value;
+var aco = document.getElementById('acomodacaoUV').value;
+var idx = parseInt(document.getElementById('faixaUV').value, 10);
+var odonto = document.getElementById('odontoUV').checked;
+var preco = UV_PRECOS[cop][aco][idx];
+if (typeof preco !== 'number') { erroUV('Combinação não encontrada na tabela.'); return; }
+var odontoValor = odonto ? UV_ODONTO : 0;
+var mensalidade = Math.round((preco + odontoValor) * 100) / 100;
+var hoje = new Date();
+var hojeIso = hoje.getFullYear() + '-' + ('0' + (hoje.getMonth() + 1)).slice(-2) + '-' + ('0' + hoje.getDate()).slice(-2);
+var foraVigencia = (hojeIso < UV_VIGENCIA_INI || hojeIso > UV_VIGENCIA_FIM);
+ULTIMO_UV = {
+cop: cop, aco: aco, idx: idx, faixa: UV_FAIXAS[idx], preco: preco, odonto: odonto, odontoValor: odontoValor,
+mensalidade: mensalidade, adesao: UV_ADESAO, total1Mes: Math.round((mensalidade + UV_ADESAO) * 100) / 100,
+nomeCliente: document.getElementById('nomeClienteUV').value,
+documentoCliente: document.getElementById('documentoClienteUV').value,
+nomeConsultor: document.getElementById('nomeConsultorUV').value,
+telefoneConsultor: document.getElementById('telefoneConsultorUV').value
+};
+var r = ULTIMO_UV;
+var html = '';
+html += linha('Plano Super Simples · 1 vida · ' + r.faixa + ' · Fortaleza, CE', r.preco);
+if (r.odonto) html += linha('Odonto opcional', r.odontoValor);
+html += linha('Taxa de adesão (R$20 por vida, única)', r.adesao);
+html += linha('Total 1º mês', r.total1Mes, false, true);
+html += linha('Mensalidade recorrente (2º mês em diante)', r.mensalidade);
+if (foraVigencia) html += '<div class="note" style="color:#b00020">⚠️ Tabela válida para contratos assinados de 23/11/2026 a 31/12/2026 (fora desse período, confirme os valores).</div>';
+document.getElementById('resumoUV').innerHTML = html;
+document.getElementById('resultadoUV').style.display = 'block';
+document.getElementById('resultadoUV').scrollIntoView({behavior: 'smooth'});
+}
+
+function escHtml(s) {
+return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function montarHtmlPropostaUV(r) {
+var d = new Date();
+var p2 = function(n) { return ('0' + n).slice(-2); };
+var dataGer = p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' às ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+var val = new Date(d.getTime() + 7 * 86400000);
+var fim = new Date(2026, 11, 31);
+if (val > fim && d <= fim) { val = fim; }
+var dataVal = p2(val.getDate()) + '/' + p2(val.getMonth() + 1) + '/' + val.getFullYear();
+var copLabel = (r.cop === 'Parcial') ? 'Coparticipação Parcial' : 'Coparticipação Total';
+var acoLabel = (r.aco === 'Ambulatorial') ? 'S/ ACOM (Ambulatorial)' : r.aco;
+var linhasCopart = '';
+for (var i = 0; i < UV_COPART.length; i++) {
+if (r.cop === 'Parcial' && i < 4) continue;
+var bg = (i % 2 === 0) ? '#1a3fb8' : '#1634a4';
+linhasCopart += '<tr style="background:' + bg + '"><td style="padding:8px 12px">' + UV_COPART[i][0] + '</td><td style="padding:8px 12px;text-align:right;color:#ffc34d;font-weight:bold">' + UV_COPART[i][1] + '</td></tr>';
+}
+var card = 'background:#1a3fb8;border-radius:10px;padding:14px 16px;margin-bottom:12px;';
+var lbl = 'font-size:10px;color:#9db4f0;text-transform:uppercase;margin-top:6px;';
+var vl = 'font-size:14px;font-weight:bold;color:#fff;';
+var h = '';
+h += '<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;width:794px;background:#0f2d95;color:#fff;font-family:Arial,Helvetica,sans-serif;padding:28px 34px}table{border-collapse:collapse;width:100%;font-size:13px;color:#fff}</style></head><body>';
+h += '<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #3a58c4;padding-bottom:14px;margin-bottom:18px">';
+h += '<div><div style="font-size:34px;font-weight:bold;font-style:italic;letter-spacing:-1px">Hapvida</div><div style="font-size:11px;color:#9db4f0">Duty Saúde · Concessionária Oficial</div></div>';
+h += '<div style="text-align:right;font-size:11px;color:#9db4f0">Proposta gerada em<br><b style="color:#fff;font-size:13px">' + dataGer + '</b></div></div>';
+h += '<div style="font-size:26px;font-weight:bold;line-height:1.2">Proposta Super Simples<br>1 Vida · Fortaleza, CE</div><div style="width:46px;height:3px;background:#f08000;margin:8px 0 16px"></div>';
+h += '<div style="display:flex;gap:12px"><div style="' + card + 'flex:1"><div style="color:#ffc34d;font-weight:bold;font-size:12px;border-bottom:1px solid #3a58c4;padding-bottom:6px">BENEFICIÁRIO</div><div style="' + lbl + '">Nome / Razão social</div><div style="' + vl + '">' + (escHtml(r.nomeCliente) || '—') + '</div><div style="' + lbl + '">CNPJ</div><div style="' + vl + '">' + (escHtml(r.documentoCliente) || '—') + '</div></div>';
+h += '<div style="' + card + 'flex:1"><div style="color:#ffc34d;font-weight:bold;font-size:12px;border-bottom:1px solid #3a58c4;padding-bottom:6px">CONSULTOR</div><div style="' + lbl + '">Nome</div><div style="' + vl + '">' + (escHtml(r.nomeConsultor) || '—') + '</div><div style="' + lbl + '">Telefone</div><div style="' + vl + '">' + (escHtml(r.telefoneConsultor) || '—') + '</div></div></div>';
+h += '<div style="' + card + '"><div style="color:#ffc34d;font-weight:bold;font-size:12px;border-bottom:1px solid #3a58c4;padding-bottom:6px">DETALHES DO PLANO</div><div style="display:flex;gap:12px"><div style="flex:1"><div style="' + lbl + '">Cidade / UF</div><div style="' + vl + '">Fortaleza, CE</div><div style="' + lbl + '">Coparticipação</div><div style="' + vl + '">' + copLabel + '</div></div><div style="flex:1"><div style="' + lbl + '">Modalidade</div><div style="' + vl + '">Super Simples · 1 vida</div><div style="' + lbl + '">Acomodação</div><div style="' + vl + '">' + acoLabel + '</div></div></div></div>';
+h += '<div style="font-size:20px;font-weight:bold;margin:6px 0 2px">Valor da Vida</div><div style="width:40px;height:3px;background:#f08000;margin-bottom:8px"></div>';
+h += '<table><tr style="background:#1a3fb8;color:#ffc34d;font-size:11px;font-weight:bold"><td style="padding:8px 12px">FAIXA ETÁRIA</td><td style="padding:8px 12px;text-align:right">MENSALIDADE</td></tr>';
+h += '<tr style="background:#1634a4"><td style="padding:8px 12px">' + r.faixa + '</td><td style="padding:8px 12px;text-align:right">' + fmt(r.preco) + '</td></tr>';
+if (r.odonto) h += '<tr style="background:#1a3fb8"><td style="padding:8px 12px">Odonto opcional (valor promocional)</td><td style="padding:8px 12px;text-align:right">' + fmt(r.odontoValor) + '</td></tr>';
+h += '</table>';
+h += '<div style="font-size:20px;font-weight:bold;margin:16px 0 2px">Resumo Financeiro</div><div style="width:40px;height:3px;background:#f08000;margin-bottom:8px"></div>';
+h += '<div style="background:#f08000;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><b style="font-size:14px">TOTAL 1º MÊS</b><br><span style="font-size:10px">TX. ADESÃO: ' + fmt(r.adesao) + ' — cobrada uma única vez no 1º mês</span></div><div style="font-size:24px;font-weight:bold">' + fmt(r.total1Mes) + '</div></div>';
+h += '<div style="' + card + 'display:flex;justify-content:space-between;align-items:center"><b style="font-size:14px">Mensalidade Recorrente</b><div style="font-size:24px;font-weight:bold;color:#ffc34d">' + fmt(r.mensalidade) + '</div></div>';
+h += '<div style="font-size:20px;font-weight:bold;margin:16px 0 2px">Valor de Coparticipação por Procedimento</div><div style="width:40px;height:3px;background:#f08000;margin-bottom:8px"></div>';
+h += '<table><tr style="background:#1a3fb8;color:#ffc34d;font-size:11px;font-weight:bold"><td style="padding:8px 12px">PROCEDIMENTO</td><td style="padding:8px 12px;text-align:right">VALOR</td></tr>' + linhasCopart + '</table>';
+h += '<div style="font-size:10px;color:#9db4f0;margin:6px 0 12px">Obs: Cobrança de coparticipação por procedimento realizado.</div>';
+h += '<div style="' + card + 'font-size:12px">⏳ <b>VALIDADE:</b> Valida até ' + dataVal + '. Tabela promocional para contratos assinados de 23/11/2026 a 31/12/2026.</div>';
+h += '<div style="' + card + 'text-align:center;font-size:20px;font-weight:bold">📞 (85) 3051-3333 &nbsp;·&nbsp; 0800 121 3333</div>';
+h += '<div style="font-size:10px;color:#9db4f0;text-align:center;margin-top:10px">Hapvida NotreDame Intermédica · Duty Saúde Concessionária Oficial · Regulamentado pela ANS · Tabela promocional Fortaleza, CE (1 vida) · Vigência: 23/11/2026 a 31/12/2026</div>';
+h += '</body></html>';
+return h;
+}
+
+function gerarPDFUmaVida() {
+if (!ULTIMO_UV) return;
+var btn = document.getElementById('btnPDFUV');
+var textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = 'Gerando PDF e JPG...';
+erroUV('');
+var nomeCli = String(ULTIMO_UV.nomeCliente || 'Cliente').trim().replace(/[^A-Za-z0-9À-ÿ]+/g, '_').replace(/^_+|_+$/g, '') || 'Cliente';
+var nomeBase = 'Proposta_1Vida_Fortaleza_CE_' + nomeCli + '_' + (ULTIMO_UV.cop === 'Parcial' ? 'CopartParcial' : 'CopartTotal') + '_' + ULTIMO_UV.aco;
+var htmlProposta = montarHtmlPropostaUV(ULTIMO_UV);
+if (!window.html2canvas) { btn.disabled = false; btn.textContent = textoOriginal; mostrarErro('Biblioteca de conversão não carregou. Recarregue a página.'); return; }
+var iframe = document.createElement('iframe');
+iframe.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:794px;height:1123px;border:0';
+document.body.appendChild(iframe);
+var limpar = function() { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); btn.disabled = false; btn.textContent = textoOriginal; };
+iframe.onload = function() {
+setTimeout(function() {
+var alvo = iframe.contentDocument.body;
+html2canvas(alvo, {backgroundColor: '#0f2d95', useCORS: true, scale: 2, windowWidth: 794}).then(function(canvas) {
+canvas.toBlob(function(blob) {
+if (blob) { baixarArquivo(nomeBase + '.jpg', blob); }
+try {
+var J = window.jspdf && window.jspdf.jsPDF;
+if (!J) throw new Error('Biblioteca de PDF não carregou.');
+var w = canvas.width, hh = canvas.height;
+var pdf = new J({orientation: 'p', unit: 'px', format: [w, hh], compress: true});
+pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, hh);
+baixarArquivo(nomeBase + '.pdf', pdf.output('blob'));
+} catch (ePdf) {
+erroUV('JPG baixado, mas houve erro ao gerar o PDF: ' + (ePdf && ePdf.message ? ePdf.message : ePdf));
+}
+limpar();
+}, 'image/jpeg', 0.92);
+}).catch(function(eC) {
+limpar();
+erroUV('Erro ao gerar a proposta: ' + (eC && eC.message ? eC.message : eC));
+});
+}, 200);
+};
+iframe.srcdoc = htmlProposta;
 }
 
 function linha(label, valor, isDesconto, grand) {
