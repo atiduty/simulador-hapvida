@@ -859,6 +859,20 @@ h += '<div style="font-size:26px;font-weight:bold;line-height:1.2">Proposta Supe
 h += '<div style="display:flex;gap:12px"><div style="' + card + 'flex:1"><div style="color:#ffc34d;font-weight:bold;font-size:12px;border-bottom:1px solid #3a58c4;padding-bottom:6px">BENEFICIÁRIO</div><div style="' + lbl + '">Nome / Razão social</div><div style="' + vl + '">' + (escHtml(r.nomeCliente) || '—') + '</div><div style="' + lbl + '">CNPJ</div><div style="' + vl + '">' + (escHtml(r.documentoCliente) || '—') + '</div></div>';
 h += '<div style="' + card + 'flex:1"><div style="color:#ffc34d;font-weight:bold;font-size:12px;border-bottom:1px solid #3a58c4;padding-bottom:6px">CONSULTOR</div><div style="' + lbl + '">Nome</div><div style="' + vl + '">' + (escHtml(r.nomeConsultor) || '—') + '</div><div style="' + lbl + '">Telefone</div><div style="' + vl + '">' + (escHtml(r.telefoneConsultor) || '—') + '</div></div></div>';
 h += '<div style="' + card + '"><div style="color:#ffc34d;font-weight:bold;font-size:12px;border-bottom:1px solid #3a58c4;padding-bottom:6px">DETALHES DO PLANO</div><div style="display:flex;gap:12px"><div style="flex:1"><div style="' + lbl + '">Cidade / UF</div><div style="' + vl + '">Fortaleza, CE</div><div style="' + lbl + '">Coparticipação</div><div style="' + vl + '">' + copLabel + '</div></div><div style="flex:1"><div style="' + lbl + '">Modalidade</div><div style="' + vl + '">Super Simples · 1 vida</div><div style="' + lbl + '">Acomodação</div><div style="' + vl + '">' + acoLabel + '</div></div></div></div>';
+var azul = 'radial-gradient(circle at 35% 30%,#7db4f5,#2a64c4)', lar = 'radial-gradient(circle at 35% 30%,#ff9a6a,#e8501f)', ama = 'radial-gradient(circle at 35% 30%,#ffe27a,#e0a010)';
+var benefTitulo, benefItens;
+if (r.aco === 'Ambulatorial') {
+benefTitulo = 'PLANO AMBULATORIAL';
+benefItens = [[azul,'Urgência'],[lar,'Emergência'],[ama,'Consultas'],[azul,'Exames Simples'],[lar,'Exames Complexos'],[ama,'Terapias'],[azul,'Odontologia Urgente']];
+} else {
+benefTitulo = (r.aco === 'Enfermaria') ? 'PLANO ENFERMARIA COMPLETO' : 'PLANO APARTAMENTO COMPLETO';
+benefItens = [[azul,'Urgência'],[lar,'Emergência'],[ama,'Consultas'],[azul,'Exames Simples'],[lar,'Exames Complexos'],[ama,'Terapias'],[azul,'Odontologia'],[lar,'Internação'],[ama,'Cirurgias'],[azul,'Obstetrícia']];
+}
+var benefHtml = '';
+for (var bi = 0; bi < benefItens.length; bi++) {
+benefHtml += '<div style="width:50%;display:inline-block;vertical-align:top;margin:7px 0;font-size:15px;font-weight:bold"><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:' + benefItens[bi][0] + ';vertical-align:middle;margin-right:10px"></span>' + benefItens[bi][1] + '</div>';
+}
+h += '<div style="background:#1a3fb8;border-radius:10px;margin-bottom:12px;overflow:hidden"><div style="padding:10px 16px;color:#ffc34d;font-weight:900;font-size:12px;letter-spacing:1px;border-bottom:1px solid #2c4fc6">✅ ' + benefTitulo + ' — COM DIREITO A:</div><div style="padding:8px 16px 10px;font-size:0">' + benefHtml + '</div></div>';
 h += '<div style="font-size:20px;font-weight:bold;margin:6px 0 2px">Valor da Vida</div><div style="width:40px;height:3px;background:#f08000;margin-bottom:8px"></div>';
 h += '<table><tr style="background:#1a3fb8;color:#ffc34d;font-size:11px;font-weight:bold"><td style="padding:8px 12px">FAIXA ETÁRIA</td><td style="padding:8px 12px;text-align:right">MENSALIDADE</td></tr>';
 h += '<tr style="background:#1634a4"><td style="padding:8px 12px">' + r.faixa + '</td><td style="padding:8px 12px;text-align:right">' + fmt(r.preco) + '</td></tr>';
